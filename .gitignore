@@ -1,0 +1,17 @@
+# Configurações locais sensíveis (Protege as tuas senhas de BD)
+config.php
+
+# Ficheiros do Sistema Operativo
+Thumbs.db
+.DS_Store
+
+# Pastas de IDEs / Editores de Código
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Ficheiros de Log
+*.log
