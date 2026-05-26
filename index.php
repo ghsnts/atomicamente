@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Atomicamente | Ensino de Química</title>
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/site.css" />
 </head>
