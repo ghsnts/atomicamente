@@ -14,7 +14,7 @@
     <header class="topo">
       <div class="container nav">
         <a href="#inicio" class="marca">
-          <div class="marca__icone">⚛️</div>
+          <img src="assets/icone-simplificado.png" alt="Ícone" class="marca__icone" style="height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--roxo-vivo), var(--roxo-base)); padding: 5px;" />
           <span>Atomicamente</span>
         </a>
         <nav class="menu" id="menuPrincipal">
@@ -34,7 +34,9 @@
             <p style="color: #6b6475; font-size: 1.1rem; margin-bottom: 25px;">Aproximando conceitos do Ensino Médio através de uma identidade clara, simuladores práticos e trilhas personalizadas baseadas no Khan Academy.</p>
             <a href="dashboard.php" class="botao" style="background: #4b1d73; color: white; padding: 15px 30px; border-radius: 99px; text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 8px 20px rgba(75, 29, 115, 0.2);">Entrar na Área de Estudos</a>
           </div>
-          <div class="hero__imagem" style="font-size: 8rem; text-align: center; animation: spin 20s linear infinite;">⚛️</div>
+          <div class="hero__imagem" style="text-align: center;">
+  <img src="assets/icone-sem-fundo.png" alt="Átomo" style="width: 100%; max-width: 350px; animation: spin 20s linear infinite;" />
+</div>
         </div>
       </section>
 
