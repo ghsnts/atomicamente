@@ -11,7 +11,10 @@
 <body class="dash-body">
   <header class="topo-dash">
     <div class="container nav-dash">
-      <a href="index.php" class="marca-dash">⚛️ Atomicamente <small class="badge-admin" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">ADMIN</small></a>
+      <a href="index.php" class="marca-dash">
+  <img src="assets/icone-simplificado.png" alt="Logo" style="height: 30px; border-radius: 6px;" />
+  Atomicamente <small class="badge-enem">ADMIN</small>
+</a>
       <nav class="abas-navegacao-topo">
         <a href="dashboard.php" class="nav-link-topo">📊 Ver como Aluna</a>
         <a href="admin_dashboard.php" class="nav-link-topo active">🎛️ Gestão</a>
