@@ -11,7 +11,10 @@
 <body class="dash-body">
   <header class="topo-dash">
     <div class="container nav-dash">
-      <a href="admin_dashboard.php" class="marca-dash">⚛️ Voltar ao Painel Admin</a>
+      <a href="index.php" class="marca-dash">
+  <img src="assets/icone-simplificado.png" alt="Logo" style="height: 30px; border-radius: 6px;" />
+  Atomicamente <small class="badge-enem">ENEM</small>
+</a>
     </div>
   </header>
 
