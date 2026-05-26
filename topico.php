@@ -11,7 +11,10 @@
 <body class="dash-body">
   <header class="topo-dash">
     <div class="container nav-dash">
-      <a href="index.php" class="marca-dash">⚛️ Atomicamente</a>
+      <a href="index.php" class="marca-dash">
+  <img src="assets/icone-simplificado.png" alt="Logo" style="height: 30px; border-radius: 6px;" />
+  Atomicamente <small class="badge-enem">ENEM</small>
+</a>
       <div class="user-info">
         <a href="materias.php" style="color: var(--roxo-base); font-weight: bold; text-decoration: none;">← Módulos</a>
       </div>
