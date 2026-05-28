@@ -23,12 +23,9 @@ try {
     $stmtAcertos->execute([':uid' => $user_id]);
     $totalAcertos = $stmtAcertos->fetchColumn();
 
-    // 3. Motor de Recomendação: Calcula a proficiência em Química Geral (Sobe 25% por acerto)
-    $proficiencia_geral = ($totalAcertos > 0) ? min(100, $totalAcertos * 25) : 30;
-    
-    // Valores base simulados para as outras frentes enquanto não há questões delas
-    $proficiencia_organica = 65;
-    $proficiencia_fisico = 40;
+$proficiencia_geral = ($totalAcertos > 0) ? min(100, $totalAcertos * 25) : 0;
+$proficiencia_organica = 0;
+$proficiencia_fisico = 0;
 
 } catch (PDOException $e) {
     die("Erro ao carregar o Painel: " . $e->getMessage());
