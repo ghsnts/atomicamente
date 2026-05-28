@@ -2,8 +2,15 @@
 session_start();
 require_once 'config.php';
 
-// Usuário padrão fictício para simulação local
-$user_id = 1; 
+// Proteção: Se a pessoa não fez login, expulsa-a para a página de login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+// Pega o ID e o Nome reais da sessão
+$user_id = $_SESSION['user_id']; 
+$nome_aluno = htmlspecialchars($_SESSION['user_nome']);
 
 try {
     // 1. Conta o total de questões respondidas pela aluna
