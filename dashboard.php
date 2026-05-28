@@ -53,7 +53,7 @@ try {
         Atomicamente <small class="badge-enem">ENEM</small>
       </a>
       <div class="user-info">
-        <span style="margin-right: 15px; color: var(--cinza-texto);">Olá, <strong>Estudante</strong></span>
+        <span style="margin-right: 15px; color: var(--cinza-texto);">Olá, <strong><?php echo $nome_aluno; ?></strong></span>
         <a href="materias.php" class="btn-estudar" style="background: var(--roxo-base); color:white; padding: 8px 16px; border-radius: 8px; text-decoration:none; font-weight:bold; font-size:0.9rem;">Ver Matérias</a>
       </div>
     </div>
