@@ -158,13 +158,14 @@ try {
             <p style="font-size: 0.95rem; line-height: 1.6; color: #78350f; margin: 0 0 20px 0;">
               Identificamos que a tua árvore de fixação em <strong>Química Geral</strong> precisa de uma base mais sólida. Recomendamos iniciar pelos conceitos fundamentais do átomo.
             </p>
-            <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706;">Estudar Modelos Atómicos</a>
+            <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706; margin-bottom: 10px;">Estudar Modelos Atómicos</a>
         <?php else: ?>
             <p style="font-size: 0.95rem; line-height: 1.6; color: #14532d; margin: 0 0 20px 0;">
               Excelente progresso! A tua base em Química Geral está a expandir-se. Que tal explorares novas frentes de estudo?
             </p>
-            <a href="topico.php?id=modelos-atomicos" class="btn-acao">Continuar Praticando</a>
         <?php endif; ?>
+        
+        <a href="materias.php" class="btn-acao" style="background: transparent; border: 2px solid var(--roxo-base); color: var(--roxo-base);">Ver Todos os Tópicos</a>
       </aside>
 
     </div>
