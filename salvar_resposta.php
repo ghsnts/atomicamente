@@ -5,11 +5,11 @@ require_once 'config.php';
 // Recebe os dados enviados pelo JavaScript
 $data = json_decode(file_get_contents('php://input'), true);
 
-if ($data) {
+if ($data && isset($_SESSION['user_id'])) {
     $questao_id     = $data['questao_id'];
     $alternativa_id = $data['alternativa_id'];
     $foi_correta    = $data['foi_correta'] ? 1 : 0;
-    $estudante_id   = 1; // ID estático para simular a aluna atual
+    $user_id        = $_SESSION['user_id']; // Agora usa o ID verdadeiro!
 
     try {
         // Guarda a resposta na tabela histórica
