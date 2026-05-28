@@ -3,7 +3,7 @@
 $host = 'localhost';
 $db   = 'atomicamente_db';
 $user = 'root';
-$pass = ''; // No Vertrigo a senha padrão do root costuma ser vazia ou 'vertrigo'
+$pass = 'vertrigo'; // No Vertrigo a senha padrão do root costuma ser vazia ou 'vertrigo'
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
