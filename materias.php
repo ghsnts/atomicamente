@@ -111,7 +111,16 @@ try {
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
         Atomicamente <span class="badge-enem">ENEM</span>
       </a>
-      <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">← Voltar ao Dashboard</a>
+      
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <?php if (verificarSeEhAdmin()): ?>
+          <a href="admin.php" class="btn-acao" style="background: #7c3aed; color: white; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);">
+            ⚙️ Painel Administradora
+          </a>
+        <?php endif; ?>
+
+        <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">Painel Inicial</a>
+      </div>
     </div>
   </header>
 
