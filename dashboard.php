@@ -107,13 +107,19 @@ try {
   
   <header class="topo-dash">
     <div class="container nav-dash">
-      <a href="index.php" class="marca-dash">
+      <a href="dashboard.php" class="marca-dash">
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
         Atomicamente <span class="badge-enem">ENEM</span>
       </a>
-      <div class="user-info" style="display: flex; align-items: center; gap: 20px;">
-        <span style="color: var(--cinza-texto); font-size: 0.95rem;">Olá, <strong><?php echo $nome_aluno; ?></strong> 👋</span>
-        <a href="logout.php" class="btn-logout">Sair</a>
+      
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <?php if (verificarSeEhAdmin()): ?>
+          <a href="admin.php" class="btn-acao" style="background: #7c3aed; color: white; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);">
+            ⚙️ Painel Administradora
+          </a>
+        <?php endif; ?>
+
+        <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">Painel Inicial</a>
       </div>
     </div>
   </header>
