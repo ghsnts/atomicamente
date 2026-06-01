@@ -2,66 +2,50 @@
 session_start();
 require_once 'config.php';
 
-// Proteção: Garante que o aluno está logado
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-// 1. Matriz da Árvore Pedagógica (Para alimentar a Barra Lateral)
-$matriz_enem = [
-    'quimica-geral' => [
-        'titulo' => 'Química Geral',
-        'subtopicos' => [
-            'modelos-atomicos'  => 'Modelos Atómicos & Eletrosfera',
-            'tabela-periodica'  => 'Propriedades Periódicas',
-            'ligacoes-quimicas' => 'Ligações Químicas & Geometria',
-            'funcoes-inorganicas'=> 'Funções Inorgânicas (Ácidos, Bases...)',
-            'estequiometria'    => 'Estequiometria & Cálculos Químicos'
-        ]
-    ],
-    'fisico-quimica' => [
-        'titulo' => 'Físico-Química',
-        'subtopicos' => [
-            'solucoes'          => 'Soluções & Concentrações',
-            'termoquimica'      => 'Termoquímica (Entalpia)',
-            'cinetica-quimica'  => 'Cinética & Velocidade de Reação',
-            'equilibrio-quimico'=> 'Equilíbrio Químico & pH',
-            'eletroquimica'     => 'Eletroquímica (Pilhas e Eletrólise)'
-        ]
-    ],
-    'quimica-organica' => [
-        'titulo' => 'Química Orgânica',
-        'subtopicos' => [
-            'cadeias-carbonadas'=> 'Introdução & Classificação de Cadeias',
-            'funcoes-organicas' => 'Funções Orgânicas (Álcool, Éster...)',
-            'isomeria'          => 'Isomeria Plana e Espacial',
-            'reacoes-organicas' => 'Reações Orgânicas de Adição/Substituição',
-            'polimeros-bioq'    => 'Polímeros & Bioquímica do ENEM'
-        ]
-    ]
-];
+$user_id = $_SESSION['user_id'];
 
-// 2. Matriz de Cards (Para alimentar a Grade Central)
-$matriz_cards = [
-    ['slug' => 'modelos-atomicos',   'titulo' => 'Modelos Atómicos', 'cat' => 'Química Geral', 'icone' => '⚛️'],
-    ['slug' => 'tabela-periodica',   'titulo' => 'Tabela Periódica', 'cat' => 'Química Geral', 'icone' => '📋'],
-    ['slug' => 'ligacoes-quimicas',  'titulo' => 'Ligações Químicas', 'cat' => 'Química Geral', 'icone' => '🤝'],
-    ['slug' => 'funcoes-inorganicas', 'titulo' => 'Funções Inorgânicas', 'cat' => 'Química Geral', 'icone' => '🧪'],
-    ['slug' => 'estequiometria',     'titulo' => 'Estequiometria', 'cat' => 'Química Geral', 'icone' => '⚖️'],
+try {
+    // 1. Puxar as Frentes e os seus respetivos Tópicos com o Cálculo de Progresso Individual
+    $frentes_com_progresso = [];
     
-    ['slug' => 'solucoes',           'titulo' => 'Soluções & Conc.', 'cat' => 'Físico-Química', 'icone' => '💧'],
-    ['slug' => 'termoquimica',       'titulo' => 'Termoquímica', 'cat' => 'Físico-Química', 'icone' => '🔥'],
-    ['slug' => 'cinetica-quimica',   'titulo' => 'Cinética Química', 'cat' => 'Físico-Química', 'icone' => '⏱️'],
-    ['slug' => 'equilibrio-quimico', 'titulo' => 'Equilíbrio Químico', 'cat' => 'Físico-Química', 'icone' => '🔄'],
-    ['slug' => 'eletroquimica',      'titulo' => 'Eletroquímica', 'cat' => 'Físico-Química', 'icone' => '🔋'],
+    $stmtFrentes = $pdo->query("SELECT * FROM frentes ORDER BY id ASC");
+    while ($frente = $stmtFrentes->fetch()) {
+        
+        $stmtTopicos = $pdo->prepare("
+            SELECT t.*,
+                (SELECT COUNT(*) FROM questions q WHERE q.subtopic_id = t.id) as total_questoes,
+                (SELECT COUNT(DISTINCT up.question_id) 
+                 FROM user_progress up 
+                 JOIN questions q ON up.question_id = q.id 
+                 WHERE q.subtopic_id = t.id AND up.user_id = :uid) as respondidas
+            FROM topicos t 
+            WHERE t.frente_id = :fid 
+            ORDER BY t.id ASC
+        ");
+        $stmtTopicos->execute([':uid' => $user_id, ':fid' => $frente['id']]);
+        $topicos_lista = $stmtTopicos->fetchAll();
+        
+        // Calcular a porcentagem em tempo de execução para cada um
+        foreach ($topicos_lista as &$t) {
+            if ($t['total_questoes'] > 0) {
+                $t['porcentagem'] = round(($t['respondidas'] / $t['total_questoes']) * 100);
+            } else {
+                $t['porcentagem'] = 0; // 0% caso não existam exercícios cadastrados
+            }
+        }
+        
+        $frente['topicos'] = $topicos_lista;
+        $frentes_com_progresso[] = $frente;
+    }
 
-    ['slug' => 'cadeias-carbonadas', 'titulo' => 'Cadeias Carbonadas', 'cat' => 'Química Orgânica', 'icone' => '⛓️'],
-    ['slug' => 'funcoes-organicas',  'titulo' => 'Funções Orgânicas', 'cat' => 'Química Orgânica', 'icone' => '🌿'],
-    ['slug' => 'isomeria',           'titulo' => 'Isomeria Espacial', 'cat' => 'Química Orgânica', 'icone' => '🪞'],
-    ['slug' => 'reacoes-organicas',  'titulo' => 'Reações Orgânicas', 'cat' => 'Química Orgânica', 'icone' => '💥'],
-    ['slug' => 'polimeros-bioq',     'titulo' => 'Polímeros & Bioquímica', 'cat' => 'Química Orgânica', 'icone' => '🧬'],
-];
+} catch (PDOException $e) {
+    die("Erro na conexão dinâmica: " . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -75,81 +59,48 @@ $matriz_cards = [
   <link rel="stylesheet" href="css/plataforma.css">
   
   <style>
-    /* DESIGN DE DIVISÃO (SIDEBAR + CONTEÚDO CENTRAL) */
-    .hub-layout-grid {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      min-height: calc(100vh - 65px);
-    }
-
-    /* ESTILO DA BARRA LATERAL (REUTILIZADO DO TOPICO.PHP) */
+    .hub-layout-grid { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 65px); }
+    
     .sidebar-grade {
-      background: white;
-      border-right: 1px solid var(--borda);
-      padding: 25px 20px;
-      overflow-y: auto;
-      max-height: calc(100vh - 65px);
+      background: white; border-right: 1px solid var(--borda);
+      padding: 25px 20px; overflow-y: auto; max-height: calc(100vh - 65px);
     }
     .titulo-categoria {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--cinza-texto);
-      margin: 20px 0 10px 0;
-      font-weight: 700;
+      font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--cinza-texto); margin: 22px 0 10px 0; font-weight: 700;
     }
-    .link-subtopico {
-      display: block;
-      padding: 10px 12px;
-      color: #334155;
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 500;
-      border-radius: 8px;
-      margin-bottom: 4px;
-      transition: all 0.2s;
+    
+    /* ITEM DA BARRA LATERAL COM VISUAL DE PROGRESSO */
+    .link-subtopico-wrapper {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; border-radius: 8px; margin-bottom: 4px;
+      text-decoration: none; color: #334155; transition: all 0.2s;
     }
-    .link-subtopico:hover {
-      background: var(--roxo-suave);
-      color: var(--roxo-base);
+    .link-subtopico-wrapper:hover { background: var(--roxo-suave); color: var(--roxo-base); }
+    .label-titulo { font-size: 0.88rem; font-weight: 500; max-width: 220px; }
+    .badge-progresso {
+      font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 6px;
+      background: #f1f5f9; color: #64748b; transition: all 0.2s;
     }
+    .link-subtopico-wrapper:hover .badge-progresso { background: white; color: var(--roxo-base); }
 
-    /* CONTAINER DO CONTEÚDO DIREITO */
-    .conteudo-hub {
-      padding: 40px;
-      background: var(--cinza-fundo);
-      overflow-y: auto;
-      max-height: calc(100vh - 65px);
-    }
-
-    /* A GRADE DE CARDS (ESTILO DO TEU PRINT) */
-    .hub-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 20px;
-      margin-top: 30px;
-    }
+    .conteudo-hub { padding: 40px; background: var(--cinza-fundo); overflow-y: auto; max-height: calc(100vh - 65px); }
+    .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 30px; }
+    
+    /* CARDS DA GRADE CENTRALIZADA */
     .card-hub-topico {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: white;
-      border: 1.5px solid #d8e2ef;
-      border-radius: 14px;
-      padding: 22px;
-      text-decoration: none;
-      transition: all 0.2s ease-in-out;
+      display: flex; justify-content: space-between; align-items: center;
+      background: white; border: 1.5px solid #d8e2ef; border-radius: 14px; padding: 22px;
+      text-decoration: none; transition: all 0.2s ease-in-out;
     }
-    .card-hub-topico:hover {
-      border-color: var(--roxo-vivo);
-      box-shadow: 0 10px 20px rgba(109, 40, 217, 0.04);
-      transform: translateY(-2px);
-    }
-    .card-hub-info { display: flex; flex-direction: column; gap: 4px; }
-    .card-hub-tag { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; }
+    .card-hub-topico:hover { border-color: var(--roxo-vivo); box-shadow: 0 10px 20px rgba(109, 40, 217, 0.04); transform: translateY(-2px); }
+    .card-hub-info { display: flex; flex-direction: column; gap: 6px; }
+    .card-hub-tag { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; color: #94a3b8; }
     .card-hub-titulo { font-size: 1rem; font-weight: 600; color: var(--roxo-profundo); }
-    .card-hub-icone { font-size: 1.6rem; opacity: 0.8; transition: transform 0.2s; }
-    .card-hub-topico:hover .card-hub-icone { transform: scale(1.1); opacity: 1; }
+    
+    /* Barra visual interna do mini card */
+    .mini-barra-progresso { width: 100px; height: 5px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-top: 2px; }
+    .mini-barra-preenchida { height: 100%; background: var(--sucesso); border-radius: 10px; }
   </style>
 </head>
 <body class="dash-body">
@@ -169,11 +120,12 @@ $matriz_cards = [
     <nav class="sidebar-grade">
       <h2 style="font-size: 1.1rem; color: var(--roxo-profundo); margin-top:0; font-weight:700;">Grade Temática</h2>
       
-      <?php foreach ($matriz_enem as $slug_topico => $dados): ?>
-        <div class="titulo-categoria"><?php echo $dados['titulo']; ?></div>
-        <?php foreach ($dados['subtopicos'] as $slug_sub => $nome_sub): ?>
-          <a href="topico.php?id=<?php echo $slug_sub; ?>" class="link-subtopico">
-             <?php echo $nome_sub; ?>
+      <?php foreach ($frentes_com_progresso as $frente): ?>
+        <div class="titulo-categoria"><?php echo $frente['nome']; ?></div>
+        <?php foreach ($frente['topicos'] as $topico): ?>
+          <a href="topico.php?id=<?php echo $topico['slug']; ?>" class="link-subtopico-wrapper">
+             <span class="label-titulo"><?php echo $topico['nome']; ?></span>
+             <span class="badge-progresso"><?php echo $topico['porcentagem']; ?>%</span>
           </a>
         <?php endforeach; ?>
       <?php endforeach; ?>
@@ -182,20 +134,26 @@ $matriz_cards = [
     <main class="conteudo-hub">
       <div style="border-bottom: 1px solid var(--borda); padding-bottom: 20px;">
         <h1 style="margin: 0; font-size: 1.8rem; color: var(--roxo-profundo); font-weight: 800;">O que vamos exercitar hoje?</h1>
-        <p style="margin: 5px 0 0 0; color: var(--cinza-texto); font-size: 0.95rem;">Selecione uma das frentes abaixo ou navegue rapidamente pela barra lateral.</p>
+        <p style="margin: 5px 0 0 0; color: var(--cinza-texto); font-size: 0.95rem;">Selecione uma das frentes abaixo ou gerencie o progresso das suas metas de estudo.</p>
       </div>
 
       <div class="hub-grid">
-        <?php foreach ($matriz_cards as $card): ?>
-          <a href="topico.php?id=<?php echo $card['slug']; ?>" class="card-hub-topico">
-            <div class="card-hub-info">
-              <span class="card-hub-tag"><?php echo $card['cat']; ?></span>
-              <span class="card-hub-titulo"><?php echo $card['titulo']; ?></span>
-            </div>
-            <div class="card-hub-icone">
-              <?php echo $card['icone']; ?>
-            </div>
-          </a>
+        <?php foreach ($frentes_com_progresso as $frente): ?>
+          <?php foreach ($frente['topicos'] as $topico): ?>
+            <a href="topico.php?id=<?php echo $topico['slug']; ?>" class="card-hub-topico">
+              <div class="card-hub-info">
+                <span class="card-hub-tag"><?php echo $frente['nome']; ?></span>
+                <span class="card-hub-titulo"><?php echo $topico['nome']; ?></span>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                  <div class="mini-barra-progresso">
+                    <div class="mini-barra-preenchida" style="width: <?php echo $topico['porcentagem']; ?>%;"></div>
+                  </div>
+                  <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;"><?php echo $topico['porcentagem']; ?>%</span>
+                </div>
+              </div>
+              <div style="font-size: 1.5rem; opacity: 0.7;"><?php echo $frente['icone']; ?></div>
+            </a>
+          <?php endforeach; ?>
         <?php endforeach; ?>
       </div>
     </main>
