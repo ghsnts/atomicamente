@@ -23,7 +23,7 @@ try {
 $GLOBALS['ADMIN_EMAILS'] = [
     'admin@atomicamente.com',
     'professora@atomicamente.com',
-    'ghsnts@gmail.com' // Adiciona aqui o teu email para testares!
+    'gustavo4.santos@alunos.ifsuldeminas.edu.br' // Adiciona aqui o teu email para testares!
 ];
 
 // Função auxiliar para verificar se o usuário atual é admin
