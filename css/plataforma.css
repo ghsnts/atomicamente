@@ -106,3 +106,49 @@ body.dash-body {
   color: #065f46 !important;
   font-weight: 600;
 }
+/* =========================================================================
+   SISTEMA DE MODO NOTURNO (VARIÁVEIS DINÂMICAS)
+   ========================================================================= */
+
+/* Tema Claro Padrão (Garante que estas variáveis batem com as tuas atuais) */
+:root {
+  --bg-global: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-topo: #ffffff;
+  --borda: #e2e8f0;
+  --texto-principal: #0f172a;
+  --texto-secundario: #64748b;
+  --roxo-profundo: #1e1b4b;
+  /* O teu roxo base e vivo permanecem iguais para manter o branding */
+}
+
+/* Tema Escuro Ativado (Visual Espacial/Neon Confortável) */
+[data-theme="dark"] {
+  --bg-global: #0b0714;       /* Roxo quase preto, ultra confortável */
+  --bg-card: #130f22;         /* Cards ligeiramente mais claros */
+  --bg-topo: #130f22;         /* Cabeçalho integrado */
+  --borda: #26203b;           /* Bordas discretas escuras */
+  --texto-principal: #f8fafc; /* Texto claro */
+  --texto-secundario: #94a3b8;/* Texto de suporte cinza claro */
+  --roxo-profundo: #e9e3ff;   /* Títulos principais ganham brilho claro */
+}
+
+/* --- AJUSTES GLOBAIS IMPORTANTES ---
+   Para que a mágica funcione, os teus elementos precisam usar estas variáveis.
+   Garante que o teu CSS usa ou herda estas definições: */
+body.dash-body {
+  background-color: var(--bg-global) !important;
+  color: var(--texto-principal) !important;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.card-modulo, .card-admin, .sidebar-grade, .auth-box {
+  background-color: var(--bg-card) !important;
+  border-color: var(--borda) !important;
+  color: var(--texto-principal) !important;
+}
+
+.topo-dash {
+  background-color: var(--bg-topo) !important;
+  border-bottom: 1px solid var(--borda) !important;
+}
