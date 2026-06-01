@@ -1,29 +1,49 @@
-/* ==========================================
-   1. VARIÁVEIS DE DESIGN (DESIGN TOKENS)
-   ========================================== */
+/* =========================================================================
+   1. DESIGN TOKENS (SISTEMA DE CORES DINÂMICAS)
+   ========================================================================= */
 :root {
-  --roxo-profundo: #1e1b4b; /* Fundo escuro elegante para contrastes */
-  --roxo-base: #6d28d9;     /* A cor principal da marca Atomicamente */
-  --roxo-vivo: #8b5cf6;     /* Destaques, botões ativos e hover */
-  --roxo-suave: #f5f3ff;    /* Fundos de cards e menus selecionados */
-  
-  --cinza-fundo: #f8fafc;   /* Fundo geral da página (suave para os olhos) */
-  --cinza-texto: #475569;   /* Cor de texto principal (alta legibilidade) */
-  --borda: #e2e8f0;          /* Linhas divisórias finas e elegantes */
-  
-  --sucesso: #10b981;       /* Verde para respostas corretas */
-  --sucesso-fundo: #ecfdf5; /* Fundo verde claro */
+  /* Cores da Marca (Mantidas fixas) */
+  --roxo-base: #6d28d9;     
+  --roxo-vivo: #8b5cf6;     
+  --sucesso: #10b981;       
+
+  /* Tema CLARO (Padrão) */
+  --bg-global: #f8fafc;     
+  --bg-card: #ffffff;
+  --bg-topo: #ffffff;
+  --bg-dropdown: #ffffff;
+  --borda: #e2e8f0;
+  --texto-principal: #0f172a;
+  --texto-secundario: #475569;
+  --roxo-profundo: #1e1b4b;
+  --bg-hover-radio: #f5f3ff;
+  --sucesso-fundo: #ecfdf5;
 }
 
-/* ==========================================
+[data-theme="dark"] {
+  /* Tema ESCURO (Premium Linear/Vercel) */
+  --bg-global: #0b0f19;         /* Azul-escuro espacial profundo */
+  --bg-card: #111827;           /* Grafite fosco acetinado para os cards */
+  --bg-topo: #111827;           /* Cabeçalho integrado ao tema */
+  --bg-dropdown: #1f2937;       /* Dropdowns ligeiramente mais claros */
+  --borda: #1f2937;             /* Linhas divisórias super discretas */
+  --texto-principal: #f3f4f6;   /* Branco lavado (não ofusca a visão) */
+  --texto-secundario: #9ca3af;  /* Cinza editorial para legendas */
+  --roxo-profundo: #c084fc;     /* Roxo pastel neon */
+  --bg-hover-radio: #1f2937;    /* Hover escuro para os exercícios */
+  --sucesso-fundo: #064e3b;     /* Verde muito escuro para acertos */
+}
+
+/* =========================================================================
    2. RESET & ESTILOS GERAIS
-   ========================================== */
+   ========================================================================= */
 body.dash-body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--cinza-fundo);
-  color: #1e293b;
+  background-color: var(--bg-global) !important;
+  color: var(--texto-principal) !important;
   margin: 0;
   padding: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .container {
@@ -32,16 +52,22 @@ body.dash-body {
   margin: 0 auto;
 }
 
-/* ==========================================
+/* Ajuste fino para os títulos e textos secundários */
+h1, h2, h3, h4 { color: var(--texto-principal); }
+p, span, label { color: var(--texto-principal); }
+.subtexto, .data-post, .cinza-texto { color: var(--texto-secundario) !important; }
+
+/* =========================================================================
    3. TOPO DA PLATAFORMA (HEADER)
-   ========================================== */
+   ========================================================================= */
 .topo-dash {
-  background: white;
-  border-bottom: 1px solid var(--borda);
+  background-color: var(--bg-topo) !important;
+  border-bottom: 1px solid var(--borda) !important;
   padding: 15px 0;
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .nav-dash {
@@ -56,7 +82,7 @@ body.dash-body {
   gap: 10px;
   font-weight: 800;
   font-size: 1.2rem;
-  color: var(--roxo-profundo);
+  color: var(--texto-principal) !important;
   text-decoration: none;
 }
 
@@ -69,16 +95,22 @@ body.dash-body {
   font-weight: bold;
 }
 
-/* ==========================================
-   4. CARDS E COMPONENTES DO DASHBOARD
-   ========================================== */
+/* =========================================================================
+   4. CARDS E COMPONENTES DO DASHBOARD E SALA DE AULA
+   ========================================================================= */
+/* O Intercetador Universal: obriga todos os blocos a seguirem o tema atual */
+.card-estatistica, .opcao-radio-card, .card-modulo, .card-admin, 
+.sidebar-grade, .auth-box, .conteudo-aula, .bloco-teoria, .area-exercicios {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--borda) !important;
+  color: var(--texto-principal) !important;
+  transition: all 0.2s ease;
+}
+
 .card-estatistica {
-  background: white;
   padding: 24px;
   border-radius: 16px;
-  border: 1px solid var(--borda);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-estatistica:hover {
@@ -86,146 +118,45 @@ body.dash-body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
 
-/* ==========================================
+/* =========================================================================
    5. INTERAÇÃO DE EXERCÍCIOS (SALA DE AULA)
-   ========================================== */
-.opcao-radio-card {
-  transition: all 0.2s ease;
-  background: white;
-}
-
+   ========================================================================= */
 .opcao-radio-card:hover {
   border-color: var(--roxo-vivo) !important;
-  background: var(--roxo-suave);
+  background-color: var(--bg-hover-radio) !important;
 }
 
 /* Classe aplicada via JS quando o aluno acerta */
 .opcao-radio-card.correct {
   background-color: var(--sucesso-fundo) !important;
   border-color: var(--sucesso) !important;
-  color: #065f46 !important;
+  color: var(--sucesso) !important;
   font-weight: 600;
 }
+
 /* =========================================================================
-   DESIGN SYSTEM ATOMICAMENTE - INTERFACE FLUIDA & MODERNA
+   6. ESTRUTURA DOS DROPDOWNS (MENUS FLUTUANTES REFORÇADOS)
    ========================================================================= */
-
-:root {
-  /* Tema Claro - Clean & Pedagógico */
-  --bg-global: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-topo: #ffffff;
-  --bg-dropdown: #ffffff;
-  --borda: #e2e8f0;
-  --texto-principal: #0f172a;   /* Slate 900 */
-  --texto-secundario: #475569;  /* Slate 600 */
-  --roxo-profundo: #1e1b4b;
-}
-
-[data-theme="dark"] {
-  /* Tema Escuro - Dark Premium (Inspirado no Vercel/Linear) */
-  --bg-global: #090d16;         /* Escuro profundo, sem ser preto puro */
-  --bg-card: #111827;           /* Grafite suave para os blocos e cards */
-  --bg-topo: #111827;
-  --bg-dropdown: #1f2937;       /* Dropdowns destacados */
-  --borda: #1f2937;             /* Bordas discretas */
-  --texto-principal: #f1f5f9;   /* Off-white (Descanso absoluto para os olhos) */
-  --texto-secundario: #94a3b8;  /* Cinza suave para descrições */
-  --roxo-profundo: #c084fc;     /* Roxo pastel neon que não agride o olhar */
-}
-
-/* --- FORÇAR ADAPTAÇÃO GERAL (Resolve o conflito de tópicos) --- */
-body.dash-body {
-  background-color: var(--bg-global) !important;
-  color: var(--texto-principal) !important;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-/* Amortecimento de contraste para blocos de texto e containers da sala de aula */
-.card-modulo, .card-admin, .sidebar-grade, .auth-box, 
-.conteudo-aula, .bloco-teoria, .area-exercicios {
-  background-color: var(--bg-card) !important;
-  border: 1px solid var(--borda) !important;
-  color: var(--texto-principal) !important;
-}
-
-/* Ajuste fino para os títulos e textos secundários */
-h1, h2, h3, h4 { color: var(--roxo-profundo); }
-p, span, label { color: var(--texto-principal); }
-.subtexto, .data-post, .cinza-texto { color: var(--texto-secundario) !important; }
-
-/* ESTRUTURA DOS DROPDOWNS DO MENU */
-.menu-dropdown {
-  position: relative;
-  display: inline-block;
-}
-.dropdown-conteudo {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: 110%;
-  background-color: var(--bg-dropdown);
-  min-width: 220px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  padding: 8px;
-  z-index: 1000;
-  animation: abrirMenu 0.15s ease-out;
-}
-.dropdown-conteudo.mostrar { display: block; }
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  color: var(--texto-principal);
-  text-decoration: none;
-  font-size: 0.88rem;
-  font-weight: 500;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.dropdown-item:hover { background: rgba(124, 58, 237, 0.08); color: var(--roxo-base); }
-.dropdown-item.sair { color: #ef4444; }
-.dropdown-item.sair:hover { background: rgba(239, 68, 68, 0.08); }
-
-.dropdown-divisor {
-  height: 1px;
-  background-color: var(--borda);
-  margin: 6px 0;
-}
-
-@keyframes abrirMenu {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-/* =========================================================================
-   ESTILOS DOS DROPDOWNS REFORÇADOS (ANTI-CONFLITO)
-   ========================================================================= */
-
 .menu-dropdown {
   position: relative !important;
   display: inline-block !important;
 }
 
 .dropdown-conteudo {
-  display: none !important; /* Garante que nasce ESCONDIDO */
+  display: none !important; 
   position: absolute !important;
   right: 0 !important;
   top: 110% !important;
-  background-color: var(--bg-dropdown, #ffffff) !important;
+  background-color: var(--bg-dropdown) !important;
   min-width: 220px !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15) !important;
-  border: 1px solid var(--borda, #e2e8f0) !important;
+  border: 1px solid var(--borda) !important;
   border-radius: 12px !important;
   padding: 8px !important;
-  z-index: 9999 !important; /* Fica por cima de qualquer card ou sidebar */
+  z-index: 9999 !important; 
+  animation: abrirMenu 0.15s ease-out;
 }
 
-/* Quando o JS colocar a classe 'mostrar', o menu APARECE */
 .dropdown-conteudo.mostrar { 
   display: block !important; 
 }
@@ -235,7 +166,7 @@ p, span, label { color: var(--texto-principal); }
   align-items: center !important;
   gap: 10px !important;
   padding: 10px 12px !important;
-  color: var(--texto-principal, #0f172a) !important;
+  color: var(--texto-principal) !important;
   text-decoration: none !important;
   font-size: 0.88rem !important;
   font-weight: 500 !important;
@@ -246,18 +177,24 @@ p, span, label { color: var(--texto-principal); }
   border: none !important;
   width: 100% !important;
   text-align: left !important;
+  box-sizing: border-box;
 }
 
 .dropdown-item:hover { 
-  background: rgba(124, 58, 237, 0.08) !important; 
+  background-color: rgba(124, 58, 237, 0.08) !important; 
   color: var(--roxo-base) !important; 
 }
 
 .dropdown-item.sair { color: #ef4444 !important; }
-.dropdown-item.sair:hover { background: rgba(239, 68, 68, 0.08) !important; }
+.dropdown-item.sair:hover { background-color: rgba(239, 68, 68, 0.08) !important; }
 
 .dropdown-divisor {
   height: 1px !important;
-  background-color: var(--borda, #e2e8f0) !important;
+  background-color: var(--borda) !important;
   margin: 6px 0 !important;
+}
+
+@keyframes abrirMenu {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
