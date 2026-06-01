@@ -102,6 +102,7 @@ try {
     }
     .btn-logout:hover { background: #fef2f2; }
   </style>
+    <script src="js/tema.js"></script>
 </head>
 <body class="dash-body">
   
