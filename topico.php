@@ -140,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     .alerta-sucesso { background: #ecfdf5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: 500; }
     .alerta-erro { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: 500; }
   </style>
+    <script src="js/tema.js"></script>
 </head>
 <body class="dash-body">
 
