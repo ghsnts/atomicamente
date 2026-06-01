@@ -160,7 +160,16 @@ $aulas   = $pdo->query("SELECT a.*, t.nome as nome_topico FROM aulas a JOIN topi
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
         Atomicamente <span class="badge-enem" style="background: #ef4444;">PAINEL ADMIN</span>
       </a>
-      <a href="materias.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">Ir para Visão do Aluno →</a>
+      
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <button id="btn-tema" onclick="alternarModoNoturno()" style="background: none; border: 1px solid var(--borda); color: var(--roxo-base); padding: 8px 12px; font-size: 0.85rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          🌙 Modo Escuro
+        </button>
+
+        <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">Painel Inicial</a>
+        <a href="materias.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">Visão do Aluno →</a>
+        <a href="logout.php" style="color: #ef4444; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-left: 5px;">Sair</a>
+      </div>
     </div>
   </header>
 
