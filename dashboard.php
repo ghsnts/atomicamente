@@ -114,6 +114,10 @@ try {
       </a>
       
       <div style="display: flex; align-items: center; gap: 20px;">
+        <button id="btn-tema" onclick="alternarModoNoturno()" style="background: none; border: 1px solid var(--borda); color: var(--roxo-base); padding: 8px 12px; font-size: 0.85rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          🌙 Modo Escuro
+        </button>
+
         <?php if (verificarSeEhAdmin()): ?>
           <a href="admin.php" class="btn-acao" style="background: #7c3aed; color: white; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); border: none; cursor: pointer;">
             ⚙️ Painel Administradora
@@ -121,8 +125,7 @@ try {
         <?php endif; ?>
 
         <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">Painel Inicial</a>
-        
-        <a href="logout.php" style="color: #ef4444; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-left: 5px; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">Sair</a>
+        <a href="logout.php" style="color: #ef4444; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-left: 5px;">Sair</a>
       </div>
     </div>
   </header>
