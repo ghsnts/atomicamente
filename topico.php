@@ -2,86 +2,101 @@
 session_start();
 require_once 'config.php';
 
-// Proteção: Garante que o aluno está logado
+// 1. Proteção: Garante que o aluno está logado
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-// ==========================================
-// MAPEAMENTO COMPLETO DA MATRIZ DO ENEM
-// ==========================================
-$matriz_enem = [
-    'quimica-geral' => [
-        'titulo' => 'Química Geral',
-        'subtopicos' => [
-            'modelos-atomicos'  => 'Modelos Atómicos & Eletrosfera',
-            'tabela-periodica'  => 'Propriedades Periódicas',
-            'ligacoes-quimicas' => 'Ligações Químicas & Geometria',
-            'funcoes-inorganicas'=> 'Funções Inorgânicas (Ácidos, Bases...)',
-            'estequiometria'    => 'Estequiometria & Cálculos Químicos'
-        ]
-    ],
-    'fisico-quimica' => [
-        'titulo' => 'Físico-Química',
-        'subtopicos' => [
-            'solucoes'          => 'Soluções & Concentrações',
-            'termoquimica'      => 'Termoquímica (Entalpia)',
-            'cinetica-quimica'  => 'Cinética & Velocidade de Reação',
-            'equilibrio-quimico'=> 'Equilíbrio Químico & pH',
-            'eletroquimica'     => 'Eletroquímica (Pilhas e Eletrólise)'
-        ]
-    ],
-    'quimica-organica' => [
-        'titulo' => 'Química Orgânica',
-        'subtopicos' => [
-            'cadeias-carbonadas'=> 'Introdução & Classificação de Cadeias',
-            'funcoes-organicas' => 'Funções Orgânicas (Álcool, Éster...)',
-            'isomeria'          => 'Isomeria Plana e Espacial',
-            'reacoes-organicas' => 'Reações Orgânicas de Adição/Substituição',
-            'polimeros-bioq'    => 'Polímeros & Bioquímica do ENEM'
-        ]
-    ]
-];
+$user_id = $_SESSION['user_id'];
 
-// Identifica qual o subtópico ativo vindo da URL (padrão: modelos-atomicos)
-$subtopico_atual = isset($_GET['id']) ? $_GET['id'] : 'modelos-atomicos';
+// 2. Identificar qual tópico/matéria o aluno está a aceder
+$slug_atual = isset($_GET['id']) ? $_GET['id'] : 'modelos-atomicos';
 
-// Descobre a qual tópico principal este subtópico pertence
-$topico_atual_slug = 'quimica-geral';
-$nome_subtopico_atual = 'Modelos Atómicos & Eletrosfera';
-
-foreach ($matriz_enem as $slug_topico => $dados) {
-    if (array_key_exists($subtopico_atual, $dados['subtopicos'])) {
-        $topico_atual_slug = $slug_topico;
-        $nome_subtopico_atual = $dados['subtopicos'][$subtopico_atual];
-        break;
+try {
+    // =========================================================================
+    // MOTOR DA BARRA LATERAL: Sincronização e Cálculo de Progresso (0% a 100%)
+    // =========================================================================
+    $frentes_sidebar = [];
+    $stmtFrentes = $pdo->query("SELECT * FROM frentes ORDER BY id ASC");
+    
+    while ($frente = $stmtFrentes->fetch()) {
+        $stmtTopicos = $pdo->prepare("
+            SELECT t.*,
+                (SELECT COUNT(*) FROM questions q WHERE q.subtopic_id = t.id) as total_questoes,
+                (SELECT COUNT(DISTINCT up.question_id) 
+                 FROM user_progress up 
+                 JOIN questions q ON up.question_id = q.id 
+                 WHERE q.subtopic_id = t.id AND up.user_id = :uid) as respondidas
+            FROM topicos t 
+            WHERE t.frente_id = :fid 
+            ORDER BY t.id ASC
+        ");
+        $stmtTopicos->execute([':uid' => $user_id, ':fid' => $frente['id']]);
+        $topicos_lista = $stmtTopicos->fetchAll();
+        
+        foreach ($topicos_lista as &$t) {
+            $t['porcentagem'] = ($t['total_questoes'] > 0) ? round(($t['respondidas'] / $t['total_questoes']) * 100) : 0;
+        }
+        
+        $frente['topicos'] = $topicos_lista;
+        $frentes_sidebar[] = $frente;
     }
+
+    // =========================================================================
+    // CARREGAR OS DADOS DO TÓPICO ATUAL SELECIONADO
+    // =========================================================================
+    $stmtAtual = $pdo->prepare("SELECT * FROM topicos WHERE slug = :slug");
+    $stmtAtual->execute([':slug' => $slug_atual]);
+    $topico_dados = $stmtAtual->fetch();
+
+    if (!$topico_dados) {
+        die("Tópico não encontrado no mapeamento da grade.");
+    }
+
+    $topico_id = $topico_dados['id'];
+    $nome_topico_atual = $topico_dados['nome'];
+
+    // Puxar os Subtópicos / Aulas dinâmicas deste tópico criadas pelas Admins
+    $stmtAulas = $pdo->prepare("SELECT * FROM aulas WHERE topico_id = :tid ORDER BY ordem ASC");
+    $stmtAulas->execute([':tid' => $topico_id]);
+    $aulas_topico = $stmtAulas->fetchAll();
+
+    // Puxar as Questões deste tópico
+    $stmtQuestoes = $pdo->prepare("SELECT * FROM questions WHERE subtopic_id = :tid ORDER BY id ASC");
+    $stmtQuestoes->execute([':tid' => $topico_id]);
+    $questoes_topico = $stmtQuestoes->fetchAll();
+
+} catch (PDOException $e) {
+    die("Erro de sincronização na sala de aula: " . $e->getMessage());
 }
 
-// ==========================================
-// BUSCA DINÂMICA DE CONTEÚDO & QUESTÕES
-// ==========================================
-// Exemplo de dados mockados para o conteúdo caso não ache no banco imediatamente
-$conteudo_texto = "Bem-vindo ao módulo de <strong>$nome_subtopico_atual</strong>. Assista à videoaula acima e teste os seus conhecimentos nos exercícios práticos.";
-$video_url = "https://www.youtube.com/embed/dQw4w9WgXcQ"; // Link placeholder
+// Lógica de Processamento de Resposta do Exercício (Mantendo o teu sistema)
+$feedback_exercicio = "";
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
+    $question_id = $_POST['question_id'];
+    $alternativa_escolhida = $_POST['alternative_letter'];
 
-// Aqui buscamos a questão vinculada a este subtópico
-try {
-    // Busca a primeira questão deste subtopico
-    $stmtQ = $pdo->prepare("SELECT * FROM questions WHERE subtopic_id = (SELECT id FROM subtopics WHERE slug = :slug LIMIT 1) LIMIT 1");
-    $stmtQ->execute([':slug' => $subtopico_atual]);
-    $questao = $stmtQ->fetch();
+    // Verificar se está correta
+    $stmtCheck = $pdo->prepare("SELECT letter FROM alternatives WHERE question_id = :qid AND is_correct = 1");
+    $stmtCheck->execute([':qid' => $question_id]);
+    $correta = $stmtCheck->fetchColumn();
 
-    $alternativas = [];
-    if ($questao) {
-        $stmtA = $pdo->prepare("SELECT * FROM alternatives WHERE question_id = :qid");
-        $stmtA->execute([':qid' => $questao['id']]);
-        $alternativas = $stmtA->fetchAll();
+    $is_correct = ($alternativa_escolhida === $correta) ? 1 : 0;
+
+    // Registar o progresso do aluno para recalcular os 100% na hora
+    $stmtProg = $pdo->prepare("INSERT IGNORE INTO user_progress (user_id, question_id, is_correct) VALUES (:uid, :qid, :isc)");
+    $stmtProg->execute([':uid' => $user_id, ':qid' => $question_id, ':isc' => $is_correct]);
+
+    if ($is_correct) {
+        $feedback_exercicio = "<div class='alerta-sucesso'>✨ Resposta Correta! Excelente linha de raciocínio.</div>";
+    } else {
+        $feedback_exercicio = "<div class='alerta-erro'>❌ Alternativa Incorreta. Que tal rever o resumo do subtópico? A correta era a ($correta).</div>";
     }
-} catch (PDOException $e) {
-    // Fallback silencioso para não quebrar o layout visual
-    $questao = null;
+    
+    // Forçar recarga rápida dos dados para atualizar a barra lateral imediatamente após o clique
+    header("Location: topico.php?id=" . $slug_atual);
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -89,147 +104,41 @@ try {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?php echo $nome_subtopico_atual; ?> | Aula</title>
+  <title><?php echo $nome_topico_atual; ?> | Atomicamente</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/plataforma.css">
   
   <style>
-    /* LAYOUT DIVIDIDO: MENU LATERAL + CONTEÚDO */
-    .sala-aula-grid {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      min-height: calc(100vh - 65px);
-    }
+    .layout-sala-aula { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 65px); }
     
-    /* MENU LATERAL (SIDEBAR) */
-    .sidebar-grade {
-      background: white;
-      border-right: 1px solid var(--borda);
-      padding: 25px 20px;
-      overflow-y: auto;
-      max-height: calc(100vh - 65px);
-    }
-    .titulo-categoria {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--cinza-texto);
-      margin: 20px 0 10px 0;
-      font-weight: 700;
-    }
-    .link-subtopico {
-      display: block;
-      padding: 10px 12px;
-      color: #334155;
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 500;
-      border-radius: 8px;
-      margin-bottom: 4px;
-      transition: all 0.2s;
-    }
-    .link-subtopico:hover {
-      background: var(--roxo-suave);
-      color: var(--roxo-base);
-    }
-    .link-subtopico.ativo {
-      background: var(--roxo-base);
-      color: white;
-      font-weight: 600;
-    }
+    /* SIDEBAR SINCRONIZADA */
+    .sidebar-grade { background: white; border-right: 1px solid var(--borda); padding: 25px 20px; overflow-y: auto; max-height: calc(100vh - 65px); }
+    .titulo-categoria { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--cinza-texto); margin: 22px 0 10px 0; font-weight: 700; }
+    
+    .link-subtopico-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; text-decoration: none; color: #334155; transition: all 0.2s; }
+    .link-subtopico-wrapper:hover { background: var(--roxo-suave); color: var(--roxo-base); }
+    .link-subtopico-wrapper.ativo { background: var(--roxo-suave); color: var(--roxo-base); font-weight: 600; }
+    .label-titulo { font-size: 0.88rem; max-width: 210px; }
+    
+    .badge-progresso { font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: #f1f5f9; color: #64748b; }
+    .link-subtopico-wrapper.ativo .badge-progresso, .link-subtopico-wrapper:hover .badge-progresso { background: white; color: var(--roxo-base); }
 
-    /* ÁREA DE CONTEÚDO PRINCIPAL */
-    .conteudo-aula {
-      padding: 40px;
-      background: var(--cinza-fundo);
-      overflow-y: auto;
-    }
-
-    /* ABAS INTERATIVAS (TABS) */
-    .abas-container {
-      display: flex;
-      border-bottom: 2px solid var(--borda);
-      margin-bottom: 30px;
-      gap: 8px;
-    }
-    .aba-btn {
-      padding: 12px 24px;
-      background: none;
-      border: none;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--cinza-texto);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.2s;
-    }
-    .aba-btn:hover { color: var(--roxo-base); }
-    .aba-btn.ativa {
-      color: var(--roxo-base);
-      border-bottom: 2px solid var(--roxo-base);
-    }
-    .painel-conteudo { display: none; }
-    .painel-conteudo.ativo { display: block; }
-
-    /* ESTILIZAÇÃO DO PLAYER DE VÍDEO */
-    .video-wrapper {
-      position: relative;
-      padding-bottom: 56.25%; /* Proporção 16:9 */
-      height: 0;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      margin-bottom: 25px;
-      border: 1px solid var(--borda);
-    }
-    .video-wrapper iframe {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-    }
-
-    /* CARDS DE ALTERNATIVAS */
-    .card-pergunta {
-      background: white;
-      padding: 30px;
-      border-radius: 16px;
-      border: 1px solid var(--borda);
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);
-    }
-    .opcao-container {
-      display: block;
-      position: relative;
-      padding: 16px 16px 16px 50px;
-      margin-bottom: 12px;
-      cursor: pointer;
-      border: 1px solid var(--borda);
-      border-radius: 10px;
-      font-size: 0.95rem;
-      user-select: none;
-    }
-    .opcao-container input { position: absolute; opacity: 0; cursor: pointer; }
-    .checkmark {
-      position: absolute;
-      top: 15px; left: 16px;
-      height: 20px; width: 20px;
-      background-color: #f1f5f9;
-      border: 1px solid var(--borda);
-      border-radius: 50%;
-    }
-    .opcao-container:hover .checkmark { border-color: var(--roxo-vivo); }
-    .opcao-container input:checked ~ .checkmark {
-      background-color: var(--roxo-base);
-      border-color: var(--roxo-base);
-    }
-    .checkmark:after {
-      content: ""; position: absolute; display: none;
-      top: 5px; left: 5px; width: 8px; height: 8px;
-      border-radius: 50%; background: white;
-    }
-    .opcao-container input:checked ~ .checkmark:after { display: block; }
+    /* ÁREA DE CONTEÚDO */
+    .centro-aula { padding: 40px; background: #f8fafc; overflow-y: auto; max-height: calc(100vh - 65px); }
+    .card-modulo { background: white; border-radius: 16px; border: 1px solid var(--borda); padding: 30px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.01); }
+    
+    /* SUBTÓPICOS / VIDEOAULAS */
+    .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; margin: 15px 0; background: #000; }
+    .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+    
+    /* EXERCÍCIOS */
+    .opcao-exercicio { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; }
+    .opcao-exercicio:hover { border-color: var(--roxo-base); background: #f8fafc; }
+    
+    .alerta-sucesso { background: #ecfdf5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: 500; }
+    .alerta-erro { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: 500; }
   </style>
 </head>
 <body class="dash-body">
@@ -238,100 +147,105 @@ try {
     <div class="container nav-dash">
       <a href="dashboard.php" class="marca-dash">
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
-        Atomicamente <span class="badge-enem">ENEM</span>
+        Atomicamente <span class="badge-enem">SALA DE AULA</span>
       </a>
-      <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">← Voltar ao Painel</a>
+      <a href="materias.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">← Voltar para os Tópicos</a>
     </div>
   </header>
 
-  <div class="sala-aula-grid">
+  <div class="layout-sala-aula">
     
     <nav class="sidebar-grade">
       <h2 style="font-size: 1.1rem; color: var(--roxo-profundo); margin-top:0; font-weight:700;">Grade Temática</h2>
       
-      <?php foreach ($matriz_enem as $slug_topico => $dados): ?>
-        <div class="titulo-categoria"><?php echo $dados['titulo']; ?></div>
-        <?php foreach ($dados['subtopicos'] as $slug_sub => $nome_sub): ?>
-          <a href="topico.php?id=<?php echo $slug_sub; ?>" 
-             class="link-subtopico <?php echo ($subtopico_atual === $slug_sub) ? 'ativo' : ''; ?>">
-             <?php echo $nome_sub; ?>
+      <?php foreach ($frentes_sidebar as $frente): ?>
+        <div class="titulo-categoria"><?php echo $frente['nome']; ?></div>
+        <?php foreach ($frente['topicos'] as $topico): ?>
+          <a href="topico.php?id=<?php echo $topico['slug']; ?>" class="link-subtopico-wrapper <?php echo ($topico['slug'] === $slug_atual) ? 'ativo' : ''; ?>">
+             <span class="label-titulo"><?php echo $topico['nome']; ?></span>
+             <span class="badge-progresso"><?php echo $topico['porcentagem']; ?>%</span>
           </a>
         <?php endforeach; ?>
       <?php endforeach; ?>
     </nav>
 
-    <main class="conteudo-aula">
-      <div style="margin-bottom: 25px;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; font-weight: 700; color: var(--roxo-vivo);">
-          <?php echo $matriz_enem[$topico_atual_slug]['titulo']; ?>
-        </span>
-        <h1 style="margin: 5px 0 0 0; font-size: 1.8rem; color: var(--roxo-profundo); font-weight: 800;">
-          <?php echo $nome_subtopico_atual; ?>
-        </h1>
+    <main class="centro-aula">
+      
+      <div style="margin-bottom: 30px;">
+        <h1 style="margin: 0; font-size: 2rem; color: var(--roxo-profundo); font-weight: 800;"><?php echo $nome_topico_atual; ?></h1>
+        <p style="margin: 5px 0 0 0; color: var(--cinza-texto); font-size: 1rem;">Estuda a base teórica através dos subtópicos e consolida com exercícios oficiais do ENEM.</p>
       </div>
 
-      <div class="abas-container">
-        <button class="aba-btn ativa" onclick="mudarAba(event, 'painel-teoria')">📚 Teoria & Aula</button>
-        <button class="aba-btn" onclick="mudarAba(event, 'painel-exercicios')">📝 Exercícios Fixação</button>
-      </div>
+      <?php echo $feedback_exercicio; ?>
 
-      <div id="painel-teoria" class="painel-conteudo ativo">
-        <div class="video-wrapper">
-          <iframe src="<?php echo $video_url; ?>" title="Videoaula ENEM" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      <h2 style="color: var(--roxo-profundo); font-size: 1.3rem; font-weight: 700; margin-bottom: 15px;">📖 Subtópicos & Aulas Teóricas</h2>
+      
+      <?php if (empty($aulas_topico)): ?>
+        <div class="card-modulo" style="color: var(--cinza-texto); font-size: 0.95rem;">
+          Nenhum subtópico de leitura ou vídeo foi cadastrado para esta matéria ainda. Acede ao Painel Admin para alimentar esta secção.
         </div>
-        <div class="card-pergunta" style="line-height: 1.7; color: #334155;">
-          <h3 style="margin-top:0; color: var(--roxo-profundo);">Resumo Teórico</h3>
-          <p><?php echo $conteudo_texto; ?></p>
-        </div>
-      </div>
+      <?php else: ?>
+        <?php foreach ($aulas_topico as $aula): ?>
+          <div class="card-modulo">
+            <h3 style="margin-top: 0; color: var(--roxo-base); font-weight: 700;"><?php echo $aula['titulo']; ?></h3>
+            
+            <?php if (!empty($aula['video_url'])): ?>
+              <div class="video-container">
+                <iframe src="<?php echo $aula['video_url']; ?>" allowfullscreen></iframe>
+              </div>
+            <?php endif; ?>
 
-      <div id="painel-exercicios" class="painel-conteudo">
-        <?php if ($questao): ?>
-          <div class="card-pergunta" id="card-questao-<?php echo $questao['id']; ?>">
-            <span class="badge-enem" style="background: var(--roxo-suave); color: var(--roxo-base); padding: 4px 8px; margin-bottom: 15px; display: inline-block;">QUESTÃO DE FIXAÇÃO</span>
-            <p style="font-size: 1.05rem; line-height: 1.6; font-weight: 500; color: var(--roxo-profundo); margin-top: 0;">
-              <?php echo nl2br(htmlspecialchars($questao['statement'])); ?>
+            <?php if (!empty($aula['resumo'])): ?>
+              <div style="line-height: 1.6; color: #334155; font-size: 0.98rem; margin-top: 15px;">
+                <?php echo nl2br($aula['resumo']); ?>
+              </div>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
+
+      <h2 style="color: var(--roxo-profundo); font-size: 1.3rem; font-weight: 700; margin: 35px 0 15px 0;">📝 Banco de Exercícios Integrados</h2>
+
+      <?php if (empty($questoes_topico)): ?>
+        <div class="card-modulo" style="color: var(--cinza-texto); font-size: 0.95rem;">
+          Grandioso! Não existem exercícios pendentes neste bloco ou o banco de dados precisa de ser alimentado no Painel Admin.
+        </div>
+      <?php else: ?>
+        <?php $contador = 1; ?>
+        <?php foreach ($questoes_topico as $questao): ?>
+          <div class="card-modulo">
+            <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--roxo-base); letter-spacing: 0.05em;">Questão <?php echo $contador++; ?></span>
+            <p style="font-size: 1.05rem; line-height: 1.6; color: var(--roxo-profundo); font-weight: 500; margin: 10px 0 20px 0;">
+              <?php echo nl2br($questao['statement']); ?>
             </p>
 
-            <form style="margin-top: 25px;">
+            <?php 
+              $stmtAlt = $pdo->prepare("SELECT * FROM alternatives WHERE question_id = :qid ORDER BY letter ASC");
+              $stmtAlt->execute([':qid' => $questao['id']]);
+              $alternativas = $stmtAlt->fetchAll();
+            ?>
+
+            <form action="" method="POST">
+              <input type="hidden" name="question_id" value="<?php echo $questao['id']; ?>">
+              <input type="hidden" name="submit_answer" value="1">
+
               <?php foreach ($alternativas as $alt): ?>
-                <label class="opcao-container opcao-radio-card" id="label-alt-<?php echo $alt['id']; ?>">
-                  <input type="radio" name="questao_opcao" value="<?php echo $alt['id']; ?>" 
-                         data-correct="<?php echo $alt['is_correct']; ?>"
-                         onclick="verificarResposta(<?php echo $questao['id']; ?>, <?php echo $alt['id']; ?>, <?php echo $alt['is_correct']; ?>)">
-                  <span class="checkmark"></span>
-                  <strong><?php echo htmlspecialchars($alt['letter']); ?>)</strong> <?php echo htmlspecialchars($alt['text_content']); ?>
+                <label class="opcao-exercicio">
+                  <input type="radio" name="alternative_letter" value="<?php echo $alt['letter']; ?>" required style="accent-color: var(--roxo-base);">
+                  <span style="font-weight: 700; color: var(--roxo-base);"><?php echo $alt['letter']; ?>)</span>
+                  <span style="color: #334155; font-size: 0.95rem;"><?php echo $alt['text_content']; ?></span>
                 </label>
               <?php endforeach; ?>
+
+              <button type="submit" class="btn-acao" style="margin-top: 15px; display: inline-block; width: auto; padding: 12px 30px;">Enviar Resposta</button>
             </form>
           </div>
-        <?php else: ?>
-          <div class="card-pergunta" style="text-align: center; padding: 40px;">
-            <span style="font-size: 2.5rem;">🚧</span>
-            <h3 style="color: var(--roxo-profundo); margin-top: 15px;">Módulo em construção</h3>
-            <p style="color: var(--cinza-texto); margin: 0;">Ainda não existem questões cadastradas para este subtópico no banco de dados.</p>
-          </div>
-        <?php endif; ?>
-      </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
 
     </main>
+
   </div>
 
-  <script>
-    function mudarAba(evt, idPainel) {
-      const painis = document.getElementsByClassName("painel-conteudo");
-      for (let i = 0; i < painis.length; i++) {
-        painis[i].classList.remove("ativo");
-      }
-      const botoes = document.getElementsByClassName("aba-btn");
-      for (let i = 0; i < botoes.length; i++) {
-        botoes[i].classList.remove("ativa");
-      }
-      document.getElementById(idPainel).classList.add("ativo");
-      evt.currentTarget.classList.add("ativa");
-    }
-  </script>
-  
-  <script src="js/plataforma.js"></script>
 </body>
 </html>
