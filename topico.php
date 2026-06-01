@@ -147,9 +147,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     <div class="container nav-dash">
       <a href="dashboard.php" class="marca-dash">
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
-        Atomicamente <span class="badge-enem">SALA DE AULA</span>
+        Atomicamente <span class="badge-enem" style="background: var(--roxo-base);">SALA DE AULA</span>
       </a>
-      <a href="materias.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">← Voltar para os Tópicos</a>
+      
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <?php if (verificarSeEhAdmin()): ?>
+          <a href="admin.php" class="btn-acao" style="background: #7c3aed; color: white; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); border: none; cursor: pointer;">
+            ⚙️ Painel Administradora
+          </a>
+        <?php endif; ?>
+
+        <a href="materias.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.9rem;">← Voltar para os Tópicos</a>
+      </div>
     </div>
   </header>
 
