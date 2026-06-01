@@ -102,6 +102,7 @@ try {
     .mini-barra-progresso { width: 100px; height: 5px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-top: 2px; }
     .mini-barra-preenchida { height: 100%; background: var(--sucesso); border-radius: 10px; }
   </style>
+    <script src="js/tema.js"></script>
 </head>
 <body class="dash-body">
 
