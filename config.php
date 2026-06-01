@@ -18,4 +18,19 @@ try {
 } catch (\PDOException $e) {
      die("Erro crítico de ligação: " . $e->getMessage());
 }
+
+// WHITELIST DE ADMINISTRADORAS (Apenas estes emails têm acesso ao Painel Admin)
+$GLOBALS['ADMIN_EMAILS'] = [
+    'admin@atomicamente.com',
+    'professora@atomicamente.com',
+    'ghsnts@gmail.com' // Adiciona aqui o teu email para testares!
+];
+
+// Função auxiliar para verificar se o usuário atual é admin
+function verificarSeEhAdmin() {
+    if (!isset($_SESSION['user_email'])) {
+        return false;
+    }
+    return in_array($_SESSION['user_email'], $GLOBALS['ADMIN_EMAILS']);
+}
 ?>
