@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['user_nome'] = $user['nome'];
         $_SESSION['user_role'] = $user['role_id'];
+        $_SESSION['user_email'] = $user['email']; // <-- ADICIONA ESTA LINHA AQUI!
         
         // Redireciona para o painel
         header("Location: dashboard.php");
