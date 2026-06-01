@@ -107,48 +107,98 @@ body.dash-body {
   font-weight: 600;
 }
 /* =========================================================================
-   SISTEMA DE MODO NOTURNO (VARIÁVEIS DINÂMICAS)
+   DESIGN SYSTEM ATOMICAMENTE - INTERFACE FLUIDA & MODERNA
    ========================================================================= */
 
-/* Tema Claro Padrão (Garante que estas variáveis batem com as tuas atuais) */
 :root {
+  /* Tema Claro - Clean & Pedagógico */
   --bg-global: #f8fafc;
   --bg-card: #ffffff;
   --bg-topo: #ffffff;
+  --bg-dropdown: #ffffff;
   --borda: #e2e8f0;
-  --texto-principal: #0f172a;
-  --texto-secundario: #64748b;
+  --texto-principal: #0f172a;   /* Slate 900 */
+  --texto-secundario: #475569;  /* Slate 600 */
   --roxo-profundo: #1e1b4b;
-  /* O teu roxo base e vivo permanecem iguais para manter o branding */
 }
 
-/* Tema Escuro Ativado (Visual Espacial/Neon Confortável) */
 [data-theme="dark"] {
-  --bg-global: #0b0714;       /* Roxo quase preto, ultra confortável */
-  --bg-card: #130f22;         /* Cards ligeiramente mais claros */
-  --bg-topo: #130f22;         /* Cabeçalho integrado */
-  --borda: #26203b;           /* Bordas discretas escuras */
-  --texto-principal: #f8fafc; /* Texto claro */
-  --texto-secundario: #94a3b8;/* Texto de suporte cinza claro */
-  --roxo-profundo: #e9e3ff;   /* Títulos principais ganham brilho claro */
+  /* Tema Escuro - Dark Premium (Inspirado no Vercel/Linear) */
+  --bg-global: #090d16;         /* Escuro profundo, sem ser preto puro */
+  --bg-card: #111827;           /* Grafite suave para os blocos e cards */
+  --bg-topo: #111827;
+  --bg-dropdown: #1f2937;       /* Dropdowns destacados */
+  --borda: #1f2937;             /* Bordas discretas */
+  --texto-principal: #f1f5f9;   /* Off-white (Descanso absoluto para os olhos) */
+  --texto-secundario: #94a3b8;  /* Cinza suave para descrições */
+  --roxo-profundo: #c084fc;     /* Roxo pastel neon que não agride o olhar */
 }
 
-/* --- AJUSTES GLOBAIS IMPORTANTES ---
-   Para que a mágica funcione, os teus elementos precisam usar estas variáveis.
-   Garante que o teu CSS usa ou herda estas definições: */
+/* --- FORÇAR ADAPTAÇÃO GERAL (Resolve o conflito de tópicos) --- */
 body.dash-body {
   background-color: var(--bg-global) !important;
   color: var(--texto-principal) !important;
-  transition: background-color 0.3s, color 0.3s;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.card-modulo, .card-admin, .sidebar-grade, .auth-box {
+/* Amortecimento de contraste para blocos de texto e containers da sala de aula */
+.card-modulo, .card-admin, .sidebar-grade, .auth-box, 
+.conteudo-aula, .bloco-teoria, .area-exercicios {
   background-color: var(--bg-card) !important;
-  border-color: var(--borda) !important;
+  border: 1px solid var(--borda) !important;
   color: var(--texto-principal) !important;
 }
 
-.topo-dash {
-  background-color: var(--bg-topo) !important;
-  border-bottom: 1px solid var(--borda) !important;
+/* Ajuste fino para os títulos e textos secundários */
+h1, h2, h3, h4 { color: var(--roxo-profundo); }
+p, span, label { color: var(--texto-principal); }
+.subtexto, .data-post, .cinza-texto { color: var(--texto-secundario) !important; }
+
+/* ESTRUTURA DOS DROPDOWNS DO MENU */
+.menu-dropdown {
+  position: relative;
+  display: inline-block;
+}
+.dropdown-conteudo {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 110%;
+  background-color: var(--bg-dropdown);
+  min-width: 220px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 1000;
+  animation: abrirMenu 0.15s ease-out;
+}
+.dropdown-conteudo.mostrar { display: block; }
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--texto-principal);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dropdown-item:hover { background: rgba(124, 58, 237, 0.08); color: var(--roxo-base); }
+.dropdown-item.sair { color: #ef4444; }
+.dropdown-item.sair:hover { background: rgba(239, 68, 68, 0.08); }
+
+.dropdown-divisor {
+  height: 1px;
+  background-color: var(--borda);
+  margin: 6px 0;
+}
+
+@keyframes abrirMenu {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
