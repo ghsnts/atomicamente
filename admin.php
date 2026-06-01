@@ -150,6 +150,7 @@ $aulas   = $pdo->query("SELECT a.*, t.nome as nome_topico FROM aulas a JOIN topi
     .btn-deletar { background: none; border: none; color: #ef4444; font-weight: 600; cursor: pointer; font-size: 0.88rem; }
     .btn-deletar:hover { text-decoration: underline; }
   </style>
+    <script src="js/tema.js"></script>
 </head>
 <body class="dash-body">
 
