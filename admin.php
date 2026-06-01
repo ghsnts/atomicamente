@@ -2,9 +2,9 @@
 session_start();
 require_once 'config.php';
 
-// Proteção básica: Garante que o usuário está logado (Em produção, terias uma coluna is_admin = 1)
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+// Proteção Avançada: Se o usuário não estiver na Whitelist de emails, é expulso para o dashboard
+if (!verificarSeEhAdmin()) {
+    header("Location: dashboard.php");
     exit;
 }
 
