@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'config.php';
+require_once 'config.php'; // Garante que a conexão com a base de dados ($pdo) está aqui
 
 // Proteção básica: apenas utilizadores logados
 if (!isset($_SESSION['user_id'])) {
@@ -8,11 +8,46 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Simulador de atualização de dados
+$user_id = $_SESSION['user_id'];
 $mensagem = "";
+$erro = "";
+
+// 1. BUSCAR AS PREFERÊNCIAS ATUAIS NA BASE DE DADOS
+try {
+    $stmt = $pdo->prepare("SELECT meta_diaria, frente_foco FROM users WHERE id = :id");
+    $stmt->execute(['id' => $user_id]);
+    $usuario_dados = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Se o aluno ainda não tiver preferências, assume estes valores padrão
+    $meta_atual = $usuario_dados['meta_diaria'] ?? 20;
+    $frente_atual = $usuario_dados['frente_foco'] ?? '';
+} catch (PDOException $e) {
+    $erro = "Erro ao carregar dados: " . $e->getMessage();
+    $meta_atual = 20;
+    $frente_atual = '';
+}
+
+// 2. PROCESSAR A GRAVAÇÃO QUANDO O FORMULÁRIO FOR SUBMETIDO
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Aqui no futuro faremos o UPDATE no banco de dados
-    $mensagem = "Preferências atualizadas com sucesso!";
+    $meta_diaria = filter_input(INPUT_POST, 'meta_diaria', FILTER_VALIDATE_INT);
+    $frente_foco = filter_input(INPUT_POST, 'frente_foco', FILTER_DEFAULT);
+
+    try {
+        $stmt_update = $pdo->prepare("UPDATE users SET meta_diaria = :meta, frente_foco = :frente WHERE id = :id");
+        $stmt_update->execute([
+            'meta' => $meta_diaria,
+            'frente' => $frente_foco,
+            'id' => $user_id
+        ]);
+
+        $mensagem = "Preferências atualizadas com sucesso!";
+        
+        // Atualiza as variáveis locais para que o HTML mostre a nova seleção imediatamente
+        $meta_atual = $meta_diaria;
+        $frente_atual = $frente_foco;
+    } catch (PDOException $e) {
+        $erro = "Erro ao salvar as configurações: " . $e->getMessage();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -34,14 +69,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
     .form-group label { font-size: 0.9rem; font-weight: 600; color: var(--texto-secundario); }
-    .form-control { padding: 12px; border: 1px solid var(--borda); border-radius: 8px; background: transparent; color: var(--texto-principal); font-family: 'Inter', sans-serif; font-size: 0.95rem; }
+    .form-control { padding: 12px; border: 1px solid var(--borda); border-radius: 8px; background: transparent; color: var(--texto-principal); font-family: 'Inter', sans-serif; font-size: 0.95rem; width: 100%; box-sizing: border-box; }
     .form-control:focus { outline: none; border-color: var(--roxo-base); }
-    .form-control:disabled { opacity: 0.6; cursor: not-allowed; }
+    .form-control:disabled { opacity: 0.5; cursor: not-allowed; background: rgba(0,0,0,0.02); }
     
-    .btn-salvar { background: var(--roxo-base); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; }
+    .btn-salvar { background: var(--roxo-base); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; font-size: 0.95rem; }
     .btn-salvar:hover { background: #6d28d9; }
     
-    .alerta { padding: 15px; border-radius: 8px; font-size: 0.95rem; margin-bottom: 20px; font-weight: 500; background: #ecfdf5; border: 1px solid #10b981; color: #065f46; }
+    .alerta { padding: 15px; border-radius: 8px; font-size: 0.95rem; margin-bottom: 20px; font-weight: 500; }
+    .alerta-sucesso { background: #ecfdf5; border: 1px solid #10b981; color: #065f46; }
+    .alerta-erro { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; }
   </style>
 </head>
 <body class="dash-body">
@@ -81,8 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </header>
 
   <main class="perfil-container">
+    
     <?php if (!empty($mensagem)): ?>
-      <div class="alerta"><?php echo $mensagem; ?></div>
+      <div class="alerta alerta-sucesso"><?php echo $mensagem; ?></div>
+    <?php endif; ?>
+    <?php if (!empty($erro)): ?>
+      <div class="alerta alerta-erro"><?php echo $erro; ?></div>
     <?php endif; ?>
 
     <div class="card-perfil">
@@ -91,17 +132,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <?php echo strtoupper(substr($_SESSION['user_nome'] ?? 'A', 0, 1)); ?>
         </div>
         <div>
-          <h1 style="margin: 0; color: var(--roxo-profundo); font-size: 1.5rem;">Configurações da Conta</h1>
-          <p style="margin: 5px 0 0; color: var(--texto-secundario);">Gere os teus dados pessoais e preferências de estudo.</p>
+          <h1 style="margin: 0; font-size: 1.5rem;">Configurações da Conta</h1>
+          <p style="margin: 5px 0 0; color: var(--texto-secundario);">Gerencia os teus dados de acesso e métricas de foco.</p>
         </div>
       </div>
 
       <form method="POST">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
           <div class="form-group">
             <label>Nome Completo</label>
             <input type="text" class="form-control" value="<?php echo htmlspecialchars($_SESSION['user_nome'] ?? ''); ?>" disabled>
-            <span style="font-size: 0.8rem; color: var(--texto-secundario);">* O nome não pode ser alterado.</span>
           </div>
           
           <div class="form-group">
@@ -110,29 +150,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
         </div>
 
-        <h3 style="margin-top: 30px; border-bottom: 1px solid var(--borda); padding-bottom: 10px; color: var(--roxo-profundo);">Meta de Estudos (ENEM)</h3>
+        <h3 style="margin-top: 30px; border-bottom: 1px solid var(--borda); padding-bottom: 10px; margin-bottom: 20px;">🎯 Planeamento de Estudos</h3>
         
         <div class="form-group">
           <label>Qual é a tua meta diária de exercícios?</label>
           <select name="meta_diaria" class="form-control">
-            <option value="10">10 Questões (Aquecimento)</option>
-            <option value="20" selected>20 Questões (Foco Ideal)</option>
-            <option value="40">40 Questões (Intensivo)</option>
-            <option value="90">90 Questões (Simulado Parcial)</option>
+            <option value="10" <?php echo $meta_atual == 10 ? 'selected' : ''; ?>>10 Questões (Aquecimento)</option>
+            <option value="20" <?php echo $meta_atual == 20 ? 'selected' : ''; ?>>20 Questões (Foco Recomendado)</option>
+            <option value="40" <?php echo $meta_atual == 40 ? 'selected' : ''; ?>>40 Questões (Intensivo)</option>
+            <option value="90" <?php echo $meta_atual == 90 ? 'selected' : ''; ?>>90 Questões (Simulado)</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label>Frente com maior dificuldade (Prioridade)</label>
+        <div class="form-group" style="margin-bottom: 30px;">
+          <label>Frente Académica Focus (Maior Dificuldade)</label>
           <select name="frente_foco" class="form-control">
-            <option value="natureza">Ciências da Natureza</option>
-            <option value="matematica">Matemática</option>
-            <option value="humanas">Ciências Humanas</option>
-            <option value="linguagens">Linguagens</option>
+            <option value="" <?php echo $frente_atual == '' ? 'selected' : ''; ?>>Nenhuma selecionada</option>
+            <option value="natureza" <?php echo $frente_atual == 'natureza' ? 'selected' : ''; ?>>Ciências da Natureza</option>
+            <option value="matematica" <?php echo $frente_atual == 'matematica' ? 'selected' : ''; ?>>Matemática</option>
+            <option value="humanas" <?php echo $frente_atual == 'humanas' ? 'selected' : ''; ?>>Ciências Humanas</option>
+            <option value="linguagens" <?php echo $frente_atual == 'linguagens' ? 'selected' : ''; ?>>Linguagens e Códigos</option>
           </select>
         </div>
 
-        <button type="submit" class="btn-salvar">Salvar Preferências</button>
+        <button type="submit" class="btn-salvar">Gravar Preferências</button>
       </form>
     </div>
   </main>
