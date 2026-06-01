@@ -202,3 +202,62 @@ p, span, label { color: var(--texto-principal); }
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* =========================================================================
+   ESTILOS DOS DROPDOWNS REFORÇADOS (ANTI-CONFLITO)
+   ========================================================================= */
+
+.menu-dropdown {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+.dropdown-conteudo {
+  display: none !important; /* Garante que nasce ESCONDIDO */
+  position: absolute !important;
+  right: 0 !important;
+  top: 110% !important;
+  background-color: var(--bg-dropdown, #ffffff) !important;
+  min-width: 220px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid var(--borda, #e2e8f0) !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+  z-index: 9999 !important; /* Fica por cima de qualquer card ou sidebar */
+}
+
+/* Quando o JS colocar a classe 'mostrar', o menu APARECE */
+.dropdown-conteudo.mostrar { 
+  display: block !important; 
+}
+
+.dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 12px !important;
+  color: var(--texto-principal, #0f172a) !important;
+  text-decoration: none !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background 0.2s !important;
+  background: none !important;
+  border: none !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.dropdown-item:hover { 
+  background: rgba(124, 58, 237, 0.08) !important; 
+  color: var(--roxo-base) !important; 
+}
+
+.dropdown-item.sair { color: #ef4444 !important; }
+.dropdown-item.sair:hover { background: rgba(239, 68, 68, 0.08) !important; }
+
+.dropdown-divisor {
+  height: 1px !important;
+  background-color: var(--borda, #e2e8f0) !important;
+  margin: 6px 0 !important;
+}
