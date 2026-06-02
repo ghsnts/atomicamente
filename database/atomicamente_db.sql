@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: 02-Jun-2026 às 14:56
+-- Generation Time: 02-Jun-2026 às 15:55
 -- Versão do servidor: 5.7.25
 -- versão do PHP: 7.1.26
 
@@ -101,7 +101,10 @@ CREATE TABLE `medalhas` (
 INSERT INTO `medalhas` (`id`, `nome`, `descricao`, `icone`, `regra_gatilho`) VALUES
 (1, 'Primeiro Passo', 'Iniciou a sua jornada e resolveu a primeira questão.', '👶', 'primeira_questao'),
 (2, 'Semana Implacável', 'Alcançou 7 dias consecutivos de estudos.', '🔥', 'streak_7'),
-(3, 'Atirador de Elite', 'Acertou 5 questões no mesmo dia.', '🎯', 'acertos_5_dia');
+(3, 'Atirador de Elite', 'Acertou 5 questões no mesmo dia.', '🎯', 'acertos_5_dia'),
+(4, 'Maratonista', 'Resolveu 20 questões num único dia.', '🏃', 'resolvidas_20_dia'),
+(5, 'Mestre da Consistência', 'Alcançou impressionantes 30 dias de ofensiva.', '👑', 'streak_30'),
+(6, 'Veterano', 'Completou 100 exercícios na plataforma.', '🎖️', 'total_100');
 
 -- --------------------------------------------------------
 
@@ -229,7 +232,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `role_id`, `nome`, `email`, `password_hash`, `meta_diaria`, `frente_foco`, `streak`, `ultimo_estudo`) VALUES
-(1, 2, 'Gustavo', 'gustavo4.santos@alunos.ifsuldeminas.edu.br', '$2y$10$CKr8ubTjBJMNDvBsPn1KjOSLgq/slbJxpD1hoTZTRRoZcK3jhTaNi', 10, 'geral', 0, NULL),
+(1, 2, 'Gustavo', 'gustavo4.santos@alunos.ifsuldeminas.edu.br', '$2y$10$CKr8ubTjBJMNDvBsPn1KjOSLgq/slbJxpD1hoTZTRRoZcK3jhTaNi', 10, 'fisico', 0, NULL),
 (2, 2, 'Teste', 'teste@alunos.ifsuldeminas.edu.br', '$2y$10$l7wVVsI1r4ZRgm9Bbqma5./2wJW2nKZ8ldrMSnIBFzADuuOp8uFEK', 20, NULL, 0, NULL);
 
 -- --------------------------------------------------------
@@ -380,7 +383,7 @@ ALTER TABLE `frentes`
 -- AUTO_INCREMENT for table `medalhas`
 --
 ALTER TABLE `medalhas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `questions`
