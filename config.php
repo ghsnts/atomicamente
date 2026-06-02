@@ -21,9 +21,14 @@ try {
 
 // WHITELIST DE ADMINISTRADORAS (Apenas estes emails têm acesso ao Painel Admin)
 $GLOBALS['ADMIN_EMAILS'] = [
-    'admin@atomicamente.com',
-    'professora@atomicamente.com',
-    'gustavo4.santos@alunos.ifsuldeminas.edu.br' // Adiciona aqui o teu email para testares!
+    'gustavo4.santos@alunos.ifsuldeminas.edu.br',
+    'mfernanda.cardoso20@gmail.com',
+    'lialvarenga8888@gmail.com',
+    'anajuliag903@gmail.com',
+    'larissa3.carvalho@alunos.ifsuldeminas.edu.br',
+    'ritacborges070209@gmail.com',
+    'ana4.rosa@alunos.ifsuldeminas.edu.br',
+    'maria2.cardoso@alunos.ifsuldeminas.edu.br' // Adiciona aqui o teu email para testares!
 ];
 
 // Função auxiliar para verificar se o usuário atual é admin
