@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: 01-Jun-2026 às 17:55
+-- Generation Time: 02-Jun-2026 às 14:56
 -- Versão do servidor: 5.7.25
 -- versão do PHP: 7.1.26
 
@@ -79,6 +79,29 @@ INSERT INTO `frentes` (`id`, `nome`, `slug`, `icone`) VALUES
 (1, 'Química Geral', 'quimica-geral', '⚛️'),
 (2, 'Físico-Química', 'fisico-quimica', '🔥'),
 (3, 'Química Orgânica', 'quimica-organica', '🌿');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura da tabela `medalhas`
+--
+
+CREATE TABLE `medalhas` (
+  `id` int(11) NOT NULL,
+  `nome` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `descricao` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `icone` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `regra_gatilho` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Extraindo dados da tabela `medalhas`
+--
+
+INSERT INTO `medalhas` (`id`, `nome`, `descricao`, `icone`, `regra_gatilho`) VALUES
+(1, 'Primeiro Passo', 'Iniciou a sua jornada e resolveu a primeira questão.', '👶', 'primeira_questao'),
+(2, 'Semana Implacável', 'Alcançou 7 dias consecutivos de estudos.', '🔥', 'streak_7'),
+(3, 'Atirador de Elite', 'Acertou 5 questões no mesmo dia.', '🎯', 'acertos_5_dia');
 
 -- --------------------------------------------------------
 
@@ -181,7 +204,7 @@ INSERT INTO `topicos` (`id`, `frente_id`, `nome`, `slug`) VALUES
 (12, 3, 'Funções Orgânicas', 'funcoes-organicas'),
 (13, 3, 'Isomeria Plana e Espacial', 'isomeria'),
 (14, 3, 'Reações Orgânicas', 'reacoes-organicas'),
-(15, 3, 'Polímeros & Bioquímica', 'polimeros-bioq');
+(16, 3, 'Polímeros & Bioquímica', 'polimeros-bioquimica');
 
 -- --------------------------------------------------------
 
@@ -196,16 +219,30 @@ CREATE TABLE `users` (
   `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `meta_diaria` int(11) DEFAULT '20',
-  `frente_foco` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `frente_foco` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `streak` int(11) DEFAULT '0',
+  `ultimo_estudo` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Extraindo dados da tabela `users`
 --
 
-INSERT INTO `users` (`id`, `role_id`, `nome`, `email`, `password_hash`, `meta_diaria`, `frente_foco`) VALUES
-(1, 2, 'Gustavo', 'gustavo4.santos@alunos.ifsuldeminas.edu.br', '$2y$10$CKr8ubTjBJMNDvBsPn1KjOSLgq/slbJxpD1hoTZTRRoZcK3jhTaNi', 20, NULL),
-(2, 2, 'Teste', 'teste@alunos.ifsuldeminas.edu.br', '$2y$10$l7wVVsI1r4ZRgm9Bbqma5./2wJW2nKZ8ldrMSnIBFzADuuOp8uFEK', 20, NULL);
+INSERT INTO `users` (`id`, `role_id`, `nome`, `email`, `password_hash`, `meta_diaria`, `frente_foco`, `streak`, `ultimo_estudo`) VALUES
+(1, 2, 'Gustavo', 'gustavo4.santos@alunos.ifsuldeminas.edu.br', '$2y$10$CKr8ubTjBJMNDvBsPn1KjOSLgq/slbJxpD1hoTZTRRoZcK3jhTaNi', 10, 'geral', 0, NULL),
+(2, 2, 'Teste', 'teste@alunos.ifsuldeminas.edu.br', '$2y$10$l7wVVsI1r4ZRgm9Bbqma5./2wJW2nKZ8ldrMSnIBFzADuuOp8uFEK', 20, NULL, 0, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura da tabela `user_medalhas`
+--
+
+CREATE TABLE `user_medalhas` (
+  `user_id` int(11) NOT NULL,
+  `medalha_id` int(11) NOT NULL,
+  `conquistada_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -219,7 +256,8 @@ CREATE TABLE `user_progress` (
   `question_id` int(11) NOT NULL,
   `alternative_id` int(11) NOT NULL,
   `foi_correta` tinyint(1) NOT NULL DEFAULT '0',
-  `respondido_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `respondido_em` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_correct` tinyint(1) DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -246,6 +284,12 @@ ALTER TABLE `aulas`
 ALTER TABLE `frentes`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `slug` (`slug`);
+
+--
+-- Indexes for table `medalhas`
+--
+ALTER TABLE `medalhas`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `questions`
@@ -295,11 +339,18 @@ ALTER TABLE `users`
   ADD KEY `role_id` (`role_id`);
 
 --
+-- Indexes for table `user_medalhas`
+--
+ALTER TABLE `user_medalhas`
+  ADD PRIMARY KEY (`user_id`,`medalha_id`);
+
+--
 -- Indexes for table `user_progress`
 --
 ALTER TABLE `user_progress`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `user_question_unique` (`user_id`,`question_id`),
+  ADD UNIQUE KEY `user_question_uni` (`user_id`,`question_id`),
   ADD KEY `question_id` (`question_id`),
   ADD KEY `alternative_id` (`alternative_id`);
 
@@ -323,6 +374,12 @@ ALTER TABLE `aulas`
 -- AUTO_INCREMENT for table `frentes`
 --
 ALTER TABLE `frentes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `medalhas`
+--
+ALTER TABLE `medalhas`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
@@ -353,7 +410,7 @@ ALTER TABLE `subtopics`
 -- AUTO_INCREMENT for table `topicos`
 --
 ALTER TABLE `topicos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `users`
