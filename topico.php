@@ -104,19 +104,20 @@ try {
     die("Erro de conexão na sala de aula: " . $e->getMessage());
 }
 
-// Lógica de Processamento de Resposta e Ofensiva (Streak)
+// =========================================================================
+// PROCESSAMENTO DE RESPOSTA, OFENSIVA (STREAK) E MEDALHAS
+// =========================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     $question_id = $_POST['question_id'];
     $alternativa_escolhida = $_POST['alternative_letter'];
 
-    // Verifica a correta
     $stmtCheck = $pdo->prepare("SELECT letter FROM alternatives WHERE question_id = :qid AND is_correct = 1");
     $stmtCheck->execute([':qid' => $question_id]);
     $correta = $stmtCheck->fetchColumn();
 
     $is_correct = ($alternativa_escolhida === $correta) ? 1 : 0;
 
-    // Salva a resposta
+    // 1. Salva a resposta no progresso
     $stmtProg = $pdo->prepare("
         INSERT INTO user_progress (user_id, question_id, is_correct, respondido_em) 
         VALUES (:uid, :qid, :isc, CURRENT_TIMESTAMP)
@@ -124,9 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     ");
     $stmtProg->execute([':uid' => $user_id, ':qid' => $question_id, ':isc' => $is_correct]);
 
-    // =========================================================================
-    // MOTOR DA OFENSIVA (STREAK 🔥)
-    // =========================================================================
+    // 2. Calcula a Ofensiva (Streak)
     $stmtUserStreak = $pdo->prepare("SELECT streak, ultimo_estudo FROM users WHERE id = :uid");
     $stmtUserStreak->execute([':uid' => $user_id]);
     $uData = $stmtUserStreak->fetch(PDO::FETCH_ASSOC);
@@ -135,15 +134,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     $ontem = date('Y-m-d', strtotime('-1 day'));
     $ultimo_estudo = $uData['ultimo_estudo'] ?? null;
     $streak_atual = $uData['streak'] ?? 0;
+    $novo_streak = $streak_atual;
 
     if ($ultimo_estudo !== $hoje) {
         if ($ultimo_estudo === $ontem) {
-            $novo_streak = $streak_atual + 1; // Estudou ontem e hoje: Aumenta o combo!
+            $novo_streak = $streak_atual + 1; 
         } else {
-            $novo_streak = 1; // Ficou dias sem estudar: Recomeça do 1
+            $novo_streak = 1; 
         }
         $pdo->prepare("UPDATE users SET streak = :s, ultimo_estudo = :h WHERE id = :uid")
             ->execute([':s' => $novo_streak, ':h' => $hoje, ':uid' => $user_id]);
+    }
+
+    // 3. Verifica e entrega Medalhas 🏆
+    // Regra: "Primeiro Passo"
+    $stmtQts = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid");
+    $stmtQts->execute([':uid' => $user_id]);
+    if ($stmtQts->fetchColumn() == 1) {
+        $pdo->prepare("INSERT IGNORE INTO user_medalhas (user_id, medalha_id) VALUES (:uid, 1)")->execute([':uid' => $user_id]);
+    }
+
+    // Regra: "Semana Implacável"
+    if ($novo_streak == 7) {
+        $pdo->prepare("INSERT IGNORE INTO user_medalhas (user_id, medalha_id) VALUES (:uid, 2)")->execute([':uid' => $user_id]);
+    }
+
+    // Regra: "Atirador de Elite"
+    if ($is_correct) {
+        $stmtAcertosHoje = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid AND is_correct = 1 AND DATE(respondido_em) = CURDATE()");
+        $stmtAcertosHoje->execute([':uid' => $user_id]);
+        if ($stmtAcertosHoje->fetchColumn() == 5) {
+            $pdo->prepare("INSERT IGNORE INTO user_medalhas (user_id, medalha_id) VALUES (:uid, 3)")->execute([':uid' => $user_id]);
+        }
+
+	// Regra: "Maratonista" (20 resolvidas hoje)
+    $stmtTotalHoje = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid AND DATE(respondido_em) = CURDATE()");
+    $stmtTotalHoje->execute([':uid' => $user_id]);
+    if ($stmtTotalHoje->fetchColumn() == 20) {
+        $pdo->prepare("INSERT IGNORE INTO user_medalhas (user_id, medalha_id) VALUES (:uid, 4)")->execute([':uid' => $user_id]);
+    }
+
+    // Regra: "Mestre da Consistência" (Streak 30)
+    if ($novo_streak == 30) {
+        $pdo->prepare("INSERT IGNORE INTO user_medalhas (user_id, medalha_id) VALUES (:uid, 5)")->execute([':uid' => $user_id]);
+    }
+
+    // Regra: "Veterano" (100 resolvidas no total)
+    // Aproveitamos a variável $stmtQts que já foi executada na Regra 1
+    if ($stmtQts->fetchColumn() == 100) {
+        $pdo->prepare("INSERT IGNORE INTO user_medalhas (user_id, medalha_id) VALUES (:uid, 6)")->execute([':uid' => $user_id]);
+    }
     }
 
     header("Location: topico.php?id=" . $slug_atual . "#questao-" . $question_id);
