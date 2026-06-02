@@ -171,6 +171,16 @@ try {
           <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.88rem; margin-right: 5px;">Painel Inicial</a>
         <?php endif; ?>
 
+        <!-- Badge de Ofensiva -->
+<div style="display: flex; align-items: center; gap: 6px; background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); padding: 6px 12px; border-radius: 10px; font-weight: 800; color: #ea580c; font-size: 0.9rem;">
+  🔥 <?php 
+        // Puxa a ofensiva para exibir (adicione a query no topo do arquivo se necessário)
+        $stmtStreak = $pdo->prepare("SELECT streak FROM users WHERE id = :uid");
+        $stmtStreak->execute([':uid' => $_SESSION['user_id']]);
+        echo $stmtStreak->fetchColumn() ?: 0;
+     ?> Dias
+</div>
+          
         <div class="menu-dropdown">
           <button onclick="alternarDropdown('drop-config')" style="background: none; border: 1px solid var(--borda); color: var(--texto-principal); padding: 8px 12px; font-size: 0.88rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
             🛠️ Configurações
