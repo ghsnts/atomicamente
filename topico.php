@@ -104,17 +104,19 @@ try {
     die("Erro de conexão na sala de aula: " . $e->getMessage());
 }
 
-// Lógica de Processamento de Resposta
+// Lógica de Processamento de Resposta e Ofensiva (Streak)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     $question_id = $_POST['question_id'];
     $alternativa_escolhida = $_POST['alternative_letter'];
 
+    // Verifica a correta
     $stmtCheck = $pdo->prepare("SELECT letter FROM alternatives WHERE question_id = :qid AND is_correct = 1");
     $stmtCheck->execute([':qid' => $question_id]);
     $correta = $stmtCheck->fetchColumn();
 
     $is_correct = ($alternativa_escolhida === $correta) ? 1 : 0;
 
+    // Salva a resposta
     $stmtProg = $pdo->prepare("
         INSERT INTO user_progress (user_id, question_id, is_correct, respondido_em) 
         VALUES (:uid, :qid, :isc, CURRENT_TIMESTAMP)
@@ -122,7 +124,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     ");
     $stmtProg->execute([':uid' => $user_id, ':qid' => $question_id, ':isc' => $is_correct]);
 
-    // Oculto no código para transição suave (Redireciona para atualizar dados)
+    // =========================================================================
+    // MOTOR DA OFENSIVA (STREAK 🔥)
+    // =========================================================================
+    $stmtUserStreak = $pdo->prepare("SELECT streak, ultimo_estudo FROM users WHERE id = :uid");
+    $stmtUserStreak->execute([':uid' => $user_id]);
+    $uData = $stmtUserStreak->fetch(PDO::FETCH_ASSOC);
+    
+    $hoje = date('Y-m-d');
+    $ontem = date('Y-m-d', strtotime('-1 day'));
+    $ultimo_estudo = $uData['ultimo_estudo'] ?? null;
+    $streak_atual = $uData['streak'] ?? 0;
+
+    if ($ultimo_estudo !== $hoje) {
+        if ($ultimo_estudo === $ontem) {
+            $novo_streak = $streak_atual + 1; // Estudou ontem e hoje: Aumenta o combo!
+        } else {
+            $novo_streak = 1; // Ficou dias sem estudar: Recomeça do 1
+        }
+        $pdo->prepare("UPDATE users SET streak = :s, ultimo_estudo = :h WHERE id = :uid")
+            ->execute([':s' => $novo_streak, ':h' => $hoje, ':uid' => $user_id]);
+    }
+
     header("Location: topico.php?id=" . $slug_atual . "#questao-" . $question_id);
     exit;
 }
