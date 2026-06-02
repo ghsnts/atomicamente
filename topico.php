@@ -149,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
     header("Location: topico.php?id=" . $slug_atual . "#questao-" . $question_id);
     exit;
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -216,6 +217,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_answer'])) {
       background-color: white; color: var(--roxo-base); box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
+
+      
     /* ÁREA CENTRAL - SALA DE AULA */
     .centro-aula { 
       padding: 40px 60px; background-color: var(--bg-global); overflow-y: auto; max-height: calc(100vh - 65px); scroll-behavior: smooth;
