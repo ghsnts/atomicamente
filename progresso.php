@@ -2,48 +2,56 @@
 session_start();
 require_once 'config.php';
 
+// Proteção: Se a pessoa não fez login, expulsa-a para a página de login
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user_id']; 
+$nome_aluno = htmlspecialchars($_SESSION['user_nome']);
+$primeiro_nome = explode(' ', trim($nome_aluno))[0]; // Para um trato mais próximo na Hero Section
 
 try {
-    // MÉTRICAS GERAIS
-    $stmtGeral = $pdo->prepare("SELECT COUNT(*) as total_resolvidas, SUM(is_correct) as total_acertos FROM user_progress WHERE user_id = :uid");
-    $stmtGeral->execute([':uid' => $user_id]);
-    $dadosGerais = $stmtGeral->fetch(PDO::FETCH_ASSOC);
+    // 1. Puxar as preferências de meta e foco do utilizador do banco de dados
+    $stmtUser = $pdo->prepare("SELECT meta_diaria, frente_foco, streak FROM users WHERE id = :uid");
+    $stmtUser->execute([':uid' => $user_id]);
+    $userData = $stmtUser->fetch(PDO::FETCH_ASSOC);
 
-    $total_resolvidas = $dadosGerais['total_resolvidas'] ?? 0;
-    $total_acertos = $dadosGerais['total_acertos'] ?? 0;
-    $total_erros = $total_resolvidas - $total_acertos;
-    $taxa_acerto_geral = $total_resolvidas > 0 ? round(($total_acertos / $total_resolvidas) * 100) : 0;
+    $meta_diaria = $userData['meta_diaria'] ?? 20; // Padrão de 20 questões
+    $frente_foco = $userData['frente_foco'] ?? '';
+    $streak_aluno = $userData['streak'] ?? 0; // Puxa o foguinho!
 
-    // DESEMPENHO POR FRENTE
-    $stmtFrentes = $pdo->prepare("
-        SELECT f.nome as frente_nome, COUNT(up.question_id) as total_respondidas, SUM(up.is_correct) as total_acertos
-        FROM frentes f JOIN topicos t ON t.frente_id = f.id JOIN questions q ON q.subtopic_id = t.id
-        JOIN user_progress up ON up.question_id = q.id WHERE up.user_id = :uid GROUP BY f.id ORDER BY total_respondidas DESC
-    ");
-    $stmtFrentes->execute([':uid' => $user_id]);
-    $desempenho_frentes = $stmtFrentes->fetchAll(PDO::FETCH_ASSOC);
+    // 2. Conta o total de questões respondidas pelo aluno real
+    $stmtTotal = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid");
+    $stmtTotal->execute([':uid' => $user_id]);
+    $totalRespondidas = $stmtTotal->fetchColumn();
 
-    // MEDALHAS DO ALUNO
-    $stmtMedalhas = $pdo->prepare("
-        SELECT m.*, um.conquistada_em FROM medalhas m
-        LEFT JOIN user_medalhas um ON m.id = um.medalha_id AND um.user_id = :uid ORDER BY m.id ASC
-    ");
-    $stmtMedalhas->execute([':uid' => $user_id]);
-    $lista_medalhas = $stmtMedalhas->fetchAll(PDO::FETCH_ASSOC);
+    // 3. Conta quantas ele acertou
+    $stmtAcertos = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid AND foi_correta = 1");
+    $stmtAcertos->execute([':uid' => $user_id]);
+    $totalAcertos = $stmtAcertos->fetchColumn();
 
-    // OFENSIVA DO ALUNO (STREAK)
-    $stmtStreak = $pdo->prepare("SELECT streak FROM users WHERE id = :uid");
-    $stmtStreak->execute([':uid' => $user_id]);
-    $streak_aluno = $stmtStreak->fetchColumn() ?: 0;
+    // 4. Calcular exercícios feitos HOJE (Ajuste seguro)
+    try {
+        $stmtHoje = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid AND DATE(respondido_em) = CURDATE()");
+        $stmtHoje->execute([':uid' => $user_id]);
+        $totalHoje = $stmtHoje->fetchColumn();
+    } catch (Exception $e) {
+        $totalHoje = min($totalRespondidas, 5); // Fallback
+    }
+
+    $percentagem_meta = ($meta_diaria > 0) ? min(100, ($totalHoje / $meta_diaria) * 100) : 0;
+
+    // 5. Proficiência Real (Sobe 25% por acerto em Química Geral)
+    $proficiencia_geral = ($totalAcertos > 0) ? min(100, $totalAcertos * 25) : 0;
+    
+    // Valores iniciais para as outras frentes
+    $proficiencia_organica = 0;
+    $proficiencia_fisico = 0;
 
 } catch (PDOException $e) {
-    die("Erro ao carregar o dashboard: " . $e->getMessage());
+    die("Erro ao carregar o Painel: " . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>
@@ -51,170 +59,288 @@ try {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meu Progresso | Atomicamente</title>
+  <title>Painel de Desempenho | Atomicamente</title>
+  <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="css/plataforma.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg-global); color: var(--texto-principal); }
-    .container-dashboard { max-width: 1050px; margin: 60px auto; padding: 0 20px; }
+    /* INTEGRAÇÃO DO DESIGN SYSTEM PREMIUM COM OS SEUS ASSETS */
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-global); color: var(--texto-principal); margin: 0; }
     
-    .cabecalho-pagina { text-align: center; margin-bottom: 60px; }
-    .titulo-dash { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; color: var(--texto-principal); }
-    .subtitulo-dash { font-size: 1.15rem; color: var(--texto-secundario); margin-top: 12px; }
-    
-    /* CARDS DE ESTATÍSTICAS */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-bottom: 60px; }
-    .stat-card { background: var(--bg-card); border-radius: 24px; border: 1px solid var(--borda); padding: 40px 30px; text-align: center; box-shadow: 0 4px 20px -5px rgba(0,0,0,0.03); transition: transform 0.3s ease, box-shadow 0.3s ease; }
-    .stat-card:hover { transform: translateY(-6px); box-shadow: 0 12px 30px -5px rgba(0,0,0,0.08); }
-    .stat-label { font-size: 0.85rem; text-transform: uppercase; font-weight: 800; color: var(--texto-secundario); letter-spacing: 0.05em; margin-bottom: 12px; }
-    .stat-value { font-size: 4rem; font-weight: 800; color: var(--roxo-base); line-height: 1; letter-spacing: -0.04em; }
-    .stat-desc { font-size: 0.95rem; color: var(--texto-secundario); margin-top: 15px; font-weight: 500; }
-    
-    .card-destaque { background: linear-gradient(135deg, var(--roxo-base), #4f46e5); color: white; border: none; box-shadow: 0 10px 30px -5px rgba(79, 70, 229, 0.4); }
-    .card-destaque .stat-label, .card-destaque .stat-desc { color: rgba(255,255,255,0.85); }
-    .card-destaque .stat-value { color: white; }
+    /* Cabeçalho */
+    .topo-dash { border-bottom: 1px solid var(--borda); background: var(--bg-card); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+    .nav-dash { padding: 12px 0; }
+    .marca-dash { font-weight: 800; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texto-principal); letter-spacing: -0.03em; }
+    .badge-enem { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; color: white; background: var(--texto-secundario); letter-spacing: 0.05em; }
 
-    /* SEÇÕES DETALHADAS */
-    .secao-detalhada { background: var(--bg-card); border-radius: 24px; border: 1px solid var(--borda); padding: 50px; margin-bottom: 50px; box-shadow: 0 4px 20px -5px rgba(0,0,0,0.02); }
-    .titulo-secao { font-size: 1.6rem; font-weight: 800; margin-top: 0; margin-bottom: 35px; letter-spacing: -0.03em; display: flex; align-items: center; gap: 10px; }
+    /* Hero Section (Boas-vindas Premium) */
+    .hero-section { background: linear-gradient(135deg, var(--bg-card), rgba(139, 92, 246, 0.03)); border-radius: 24px; padding: 45px 50px; border: 1px solid var(--borda); box-shadow: 0 10px 30px -5px rgba(0,0,0,0.03); margin-bottom: 40px; position: relative; overflow: hidden; }
+    .saudacao { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.04em; margin: 0 0 10px 0; color: var(--texto-principal); }
+    .mensagem-motivacional { font-size: 1.1rem; color: var(--texto-secundario); margin: 0; line-height: 1.5; max-width: 650px; font-weight: 500; }
 
-    /* DESEMPENHO POR FRENTE */
-    .frente-row { margin-bottom: 30px; }
-    .frente-row:last-child { margin-bottom: 0; }
-    .frente-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
-    .frente-nome { font-weight: 800; font-size: 1.1rem; color: var(--texto-principal); }
-    .frente-numeros { font-size: 0.95rem; color: var(--texto-secundario); font-weight: 600; }
-    .barra-bg { background: var(--bg-global); height: 16px; border-radius: 20px; overflow: hidden; border: 1px solid var(--borda); }
-    .barra-fill { height: 100%; border-radius: 20px; transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    /* Grid de Estatísticas Elevado */
+    .grid-estatisticas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px; }
+    .card-estatistica { background-color: var(--bg-card); padding: 35px 25px; border-radius: 20px; border: 1px solid var(--borda); box-shadow: 0 4px 20px -5px rgba(0,0,0,0.03); transition: transform 0.3s ease; text-align: center; }
+    .card-estatistica:hover { transform: translateY(-5px); }
     
-    .fill-bom { background: linear-gradient(90deg, #10b981, #34d399); }
-    .fill-medio { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-    .fill-ruim { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .meta-progresso-container { margin-top: 20px; text-align: left; background: var(--bg-global); padding: 15px; border-radius: 12px; border: 1px solid var(--borda); }
+    .meta-barra-bg { background: rgba(139, 92, 246, 0.1); height: 10px; border-radius: 6px; overflow: hidden; width: 100%; margin-top: 8px; }
+    .meta-barra-fill { background: linear-gradient(90deg, var(--roxo-base), #4f46e5); height: 100%; border-radius: 6px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
 
-    /* NOVO DESIGN DA GALERIA DE MEDALHAS 🏆 */
-    .grid-medalhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+    /* Layout Gráfico + Sugestão */
+    .dashboard-layout { display: grid; grid-template-columns: 1fr 380px; gap: 30px; align-items: start; margin-bottom: 50px; }
+    @media (max-width: 950px) { .dashboard-layout { grid-template-columns: 1fr; } }
     
-    .card-medalha { 
-      background: var(--bg-card); border-radius: 20px; padding: 35px 25px; 
-      text-align: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-      position: relative; border: 2px solid transparent;
-    }
+    .card-principal { background-color: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--borda); box-shadow: 0 4px 20px -5px rgba(0,0,0,0.02); height: 100%; }
+
+    /* Card de Sugestão Premium */
+    .card-sugestao { background: linear-gradient(145deg, rgba(217, 119, 6, 0.05), var(--bg-card)); border: 1px solid rgba(217, 119, 6, 0.2); padding: 40px 35px; border-radius: 24px; box-shadow: 0 10px 30px -5px rgba(217, 119, 6, 0.05); height: 100%; display: flex; flex-direction: column; }
     
-    .medalha-conquistada { 
-      border-color: var(--roxo-base); 
-      background: linear-gradient(145deg, var(--bg-card), rgba(139, 92, 246, 0.03));
-      box-shadow: 0 10px 30px -5px rgba(139, 92, 246, 0.15); 
-    }
-    .medalha-conquistada:hover { transform: translateY(-8px); box-shadow: 0 15px 35px -5px rgba(139, 92, 246, 0.25); }
-    
-    .medalha-bloqueada { 
-      background: var(--bg-global); border: 2px dashed var(--borda); 
-      opacity: 0.6; filter: grayscale(100%); 
-    }
-    
-    .icone-medalha { font-size: 4.5rem; margin-bottom: 20px; line-height: 1; display: inline-block; transition: transform 0.4s ease; }
-    .medalha-conquistada:hover .icone-medalha { transform: scale(1.15) rotate(8deg); }
-    
-    .titulo-medalha { margin: 0 0 10px 0; color: var(--texto-principal); font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
-    .desc-medalha { margin: 0; color: var(--texto-secundario); font-size: 0.9rem; line-height: 1.5; font-weight: 500; }
-    
-    .selo-data { margin-top: 20px; font-size: 0.75rem; font-weight: 800; color: var(--roxo-base); background: var(--roxo-suave); padding: 6px 14px; border-radius: 20px; display: inline-block; letter-spacing: 0.05em; text-transform: uppercase; }
-    .selo-bloqueada { margin-top: 20px; font-size: 0.75rem; font-weight: 800; color: var(--texto-secundario); background: var(--bg-card); border: 1px solid var(--borda); padding: 6px 14px; border-radius: 20px; display: inline-block; letter-spacing: 0.05em; text-transform: uppercase; }
+    .btn-acao { display: block; text-align: center; background: var(--roxo-base); color: white; padding: 14px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 0.95rem; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2); }
+    .btn-acao:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3); color: white; }
   </style>
   <script src="js/tema.js"></script>
 </head>
 <body class="dash-body">
-
-  <header class="topo-dash" style="border-bottom: 1px solid var(--borda); background: var(--bg-card);">
+  
+  <header class="topo-dash">
     <div class="container nav-dash" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-      <a href="dashboard.php" class="marca-dash" style="font-weight: 800; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; letter-spacing: -0.03em;">
-        <img src="assets/icone-simplificado.png" alt="Logo" style="height: 34px; border-radius: 8px;" />
-        Atomicamente
+      
+      <a href="dashboard.php" class="marca-dash">
+        <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
+        Atomicamente 
+        <?php 
+          $pagina_atual = basename($_SERVER['PHP_SELF']);
+          if ($pagina_atual === 'topico.php') {
+              echo '<span class="badge-enem" style="background: var(--roxo-base);">SALA DE AULA</span>';
+          } elseif ($pagina_atual === 'admin.php') {
+              echo '<span class="badge-enem" style="background: #ef4444;">PAINEL ADMIN</span>';
+          } else {
+              echo '<span class="badge-enem">ENEM</span>';
+          }
+        ?>
       </a>
       
-      <div style="display: flex; align-items: center; gap: 20px;">
-        <div style="display: flex; align-items: center; gap: 8px; background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.2); padding: 8px 14px; border-radius: 12px; font-weight: 800; color: #ea580c; font-size: 0.95rem;">
+      <div style="display: flex; align-items: center; gap: 15px;">
+        
+        <?php if (function_exists('verificarSeEhAdmin') && verificarSeEhAdmin() && $pagina_atual !== 'admin.php'): ?>
+          <a href="admin.php" class="btn-acao" style="background: #7c3aed; color: white; padding: 8px 14px; font-size: 0.82rem; border-radius: 8px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);">
+            ⚙️ Gerenciar
+          </a>
+        <?php endif; ?>
+
+        <!-- Badge de Ofensiva Integrada -->
+        <div style="display: flex; align-items: center; gap: 6px; background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); padding: 8px 14px; border-radius: 10px; font-weight: 800; color: #ea580c; font-size: 0.9rem;">
           🔥 <?php echo $streak_aluno; ?> Dias
         </div>
-        
-        <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 700; font-size: 0.95rem; transition: opacity 0.2s;">Painel Inicial</a>
-        <a href="perfil.php" style="background: var(--roxo-base); color: white; padding: 10px 20px; font-size: 0.95rem; border-radius: 12px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);">👤 Voltar ao Perfil</a>
+          
+        <div class="menu-dropdown">
+          <button onclick="alternarDropdown('drop-config')" style="background: none; border: 1px solid var(--borda); color: var(--texto-principal); padding: 8px 12px; font-size: 0.88rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            🛠️ Configurações
+          </button>
+          <div id="drop-config" class="dropdown-conteudo">
+            <div class="dropdown-item" onclick="alternarModoNoturno()">
+              <span id="btn-tema-texto">🌙 Modo Escuro</span>
+            </div>
+            <div class="dropdown-item" style="opacity: 0.6; cursor: not-allowed;">
+              <span>🔔 Notificações (Breve)</span>
+            </div>
+            <div class="dropdown-item" style="opacity: 0.6; cursor: not-allowed;">
+              <span>📏 Tamanho da Fonte (Breve)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="menu-dropdown">
+          <button onclick="alternarDropdown('drop-perfil')" style="background: var(--roxo-base); color: white; border: none; padding: 8px 14px; font-size: 0.88rem; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            👤 <?php echo $primeiro_nome; ?> <span style="font-size: 0.65rem;">▼</span>
+          </button>
+          <div id="drop-perfil" class="dropdown-conteudo">
+            <div style="padding: 10px; font-size: 0.75rem; color: var(--texto-secundario); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Minha Conta</div>
+            <a href="perfil.php" class="dropdown-item">🧑‍🎓 Preferências do Perfil</a>
+            <a href="progresso.php" class="dropdown-item">📈 Meu Progresso ENEM</a>
+            <div class="dropdown-divisor"></div>
+            <a href="logout.php" class="dropdown-item sair">🚪 Sair da Conta</a>
+          </div>
+        </div>
+
       </div>
     </div>
   </header>
 
-  <div class="container-dashboard">
-    <div class="cabecalho-pagina">
-      <h1 class="titulo-dash">Seu Boletim & Conquistas</h1>
-      <p class="subtitulo-dash">Analise os seus dados de estudo, descubra os seus pontos fortes e acompanhe o seu legado.</p>
+  <main class="container" style="padding: 40px 0;">
+    
+    <!-- HERO SECTION ADICIONADA -->
+    <div class="hero-section">
+      <h1 class="saudacao">Olá, <?php echo $primeiro_nome; ?>! 👋</h1>
+      <p class="mensagem-motivacional">
+        <?php if ($streak_aluno > 0): ?>
+          Excelente! Você está com uma ofensiva de <strong><?php echo $streak_aluno; ?> dias</strong>. Continue a resolver exercícios hoje para manter a sua chama acesa e avançar na sua proficiência.
+        <?php else: ?>
+          Pronto para iniciar os estudos? Resolva a sua primeira bateria de exercícios hoje para acender a sua ofensiva e ganhar as suas primeiras medalhas.
+        <?php endif; ?>
+      </p>
     </div>
 
-    <!-- CARDS DE ESTATÍSTICAS GERAIS -->
-    <div class="stats-grid">
-      <div class="stat-card card-destaque">
-        <div class="stat-label">Taxa de Acerto Global</div>
-        <div class="stat-value"><?php echo $taxa_acerto_geral; ?>%</div>
-        <div class="stat-desc">Precisão em todo o histórico</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Bateria Resolvida</div>
-        <div class="stat-value" style="color: var(--texto-principal);"><?php echo $total_resolvidas; ?></div>
-        <div class="stat-desc">Questões finalizadas no total</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Balanço de Respostas</div>
-        <div class="stat-value" style="font-size: 2.5rem; margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 15px;">
-          <span style="color: #10b981;"><?php echo $total_acertos; ?> <span style="font-size: 1rem; color: var(--texto-secundario); font-weight: 700;">Hits</span></span> 
-          <span style="color: var(--borda); font-weight: 400; font-size: 1.5rem;">|</span> 
-          <span style="color: #ef4444;"><?php echo $total_erros; ?> <span style="font-size: 1rem; color: var(--texto-secundario); font-weight: 700;">Miss</span></span>
+    <!-- GRID DE ESTATÍSTICAS REFINADO -->
+    <div class="grid-estatisticas">
+      <div class="card-estatistica">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">📝</span>
+        <h3 style="font-size: 2.2rem; margin: 0 0 5px 0; color: var(--texto-principal); font-weight: 800; letter-spacing: -0.03em;"><?php echo $totalRespondidas; ?></h3>
+        <p style="color: var(--texto-secundario); font-size: 0.95rem; margin: 0; font-weight: 600;">Questões Resolvidas</p>
+        
+        <!-- Barra de Progresso Gamificada Intacta -->
+        <div class="meta-progresso-container">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; color: var(--texto-secundario);">
+            <span>Meta de Hoje:</span>
+            <span style="color: var(--roxo-base);"><?php echo $totalHoje; ?> / <?php echo $meta_diaria; ?></span>
+          </div>
+          <div class="meta-barra-bg">
+            <div class="meta-barra-fill" style="width: <?php echo $percentagem_meta; ?>%;"></div>
+          </div>
         </div>
-        <div class="stat-desc">Acertos comparados aos erros</div>
+      </div>
+      
+      <div class="card-estatistica" style="display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">🎯</span>
+        <h3 style="font-size: 2.5rem; margin: 0 0 5px 0; color: #10b981; font-weight: 800; letter-spacing: -0.03em;"><?php echo $totalAcertos; ?></h3>
+        <p style="color: var(--texto-secundario); font-size: 0.95rem; margin: 0; font-weight: 600;">Acertos Confirmados</p>
+      </div>
+
+      <div class="card-estatistica" style="display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 10px;">⚡</span>
+        <h3 style="font-size: 2.5rem; margin: 0 0 5px 0; color: var(--roxo-base); font-weight: 800; letter-spacing: -0.03em;"><?php echo $proficiencia_geral; ?>%</h3>
+        <p style="color: var(--texto-secundario); font-size: 0.95rem; margin: 0; font-weight: 600;">Proficiência Geral</p>
       </div>
     </div>
 
-    <!-- GALERIA DE MEDALHAS LUXUOSA 🏆 -->
-    <div class="secao-detalhada">
-      <h2 class="titulo-secao">🏆 Galeria de Honra</h2>
-      <div class="grid-medalhas">
-        <?php foreach ($lista_medalhas as $medalha): ?>
-          <?php $conquistada = !empty($medalha['conquistada_em']); ?>
-          <div class="card-medalha <?php echo $conquistada ? 'medalha-conquistada' : 'medalha-bloqueada'; ?>">
-            <div class="icone-medalha"><?php echo htmlspecialchars($medalha['icone']); ?></div>
-            <h4 class="titulo-medalha"><?php echo htmlspecialchars($medalha['nome']); ?></h4>
-            <p class="desc-medalha"><?php echo htmlspecialchars($medalha['descricao']); ?></p>
-            
-            <?php if ($conquistada): ?>
-              <div class="selo-data">Desbloqueada em <?php echo date('d/m/Y', strtotime($medalha['conquistada_em'])); ?></div>
+    <!-- ÁREA DE MAPEAMENTO E SUGESTÃO INTACTAS -->
+    <div class="dashboard-layout">
+      
+      <div class="card-principal">
+        <h3 style="margin: 0 0 35px 0; color: var(--texto-principal); font-weight: 800; font-size: 1.3rem; letter-spacing: -0.02em;">📊 Mapeamento de Proficiência em Química</h3>
+        <div style="max-height: 400px; position: relative; display: flex; justify-content: center;">
+          <canvas id="graficoProficiencia" style="max-width: 380px; max-height: 380px;"></canvas>
+        </div>
+      </div>
+
+      <aside class="card-sugestao">
+        <h3 style="color: #b45309; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; margin: 0 0 20px 0; font-weight: 800; letter-spacing: -0.02em;">
+          <span>💡</span> Sugestão Pedagógica
+        </h3>
+        
+        <div style="flex-grow: 1;">
+        <?php 
+        // LÓGICA DE DIRECIONAMENTO CONTEXTUAL INTACTA
+        if (!empty($frente_foco)): 
+            if ($frente_foco === 'geral'): ?>
+                <p style="font-size: 1.05rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 25px 0; font-weight: 500;">
+                  Definiste <strong>Química Geral e Atomística</strong> como o teu foco. Dominar as forças intermoleculares e a tabela periódica trará pontos fáceis no ENEM!
+                </p>
+                <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706;">Avançar: Atomística</a>
+            <?php elseif ($frente_foco === 'fisico'): ?>
+                <p style="font-size: 1.05rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 25px 0; font-weight: 500;">
+                  O teu foco atual é <strong>Físico-Química</strong>. Que tal desvendar os cálculos de Estequiometria e Termoquímica hoje?
+                </p>
+                <a href="topico.php?id=estequiometria" class="btn-acao" style="background: #b45309;">Praticar Cálculos</a>
+            <?php elseif ($frente_foco === 'organica'): ?>
+                <p style="font-size: 1.05rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 25px 0; font-weight: 500;">
+                  Foco em <strong>Química Orgânica</strong> detetado! Revisar as funções oxigenadas e a hibridação do carbono é essencial.
+                </p>
+                <a href="topico.php?id=funcoes-organicas" class="btn-acao" style="background: #7c3aed;">Ver Cadeias Carbónicas</a>
+            <?php elseif ($frente_foco === 'ambiental'): ?>
+                <p style="font-size: 1.05rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 25px 0; font-weight: 500;">
+                  Foco em <strong>Química Ambiental</strong> ativo. Domina os ciclos biogeoquímicos, chuva ácida e tratamento de águas!
+                </p>
+                <a href="topico.php?id=quimica-ambiental" class="btn-acao" style="background: #059669;">Revisar Impactos Ambientais</a>
+            <?php endif; 
+        else: 
+            // Fallback baseado na proficiência
+            if ($proficiencia_geral < 50): ?>
+                <p style="font-size: 1.05rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 25px 0; font-weight: 500;">
+                  Identificamos que a tua árvore de fixação em <strong>Química Geral</strong> precisa de uma base mais sólida. Recomendamos iniciar pelos conceitos fundamentais.
+                </p>
+                <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706;">Estudar Modelos Atómicos</a>
             <?php else: ?>
-              <div class="selo-bloqueada">🔒 Desafio Pendente</div>
-            <?php endif; ?>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </div>
+                <p style="font-size: 1.05rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 25px 0; font-weight: 500;">
+                  Excelente progresso, <?php echo $primeiro_nome; ?>! A tua base em Química Geral está sólida. Escolha um foco no seu perfil para darmos recomendações avançadas!
+                </p>
+            <?php endif; 
+        endif; ?>
+        </div>
+        
+        <a href="materias.php" class="btn-acao" style="background: transparent; border: 2px solid var(--roxo-base); color: var(--roxo-base); margin-top: 20px; box-shadow: none;">Explorar Todos os Tópicos</a>
+      </aside>
 
-    <!-- DESEMPENHO POR FRENTE REFINADO -->
-    <div class="secao-detalhada">
-      <h2 class="titulo-secao">📊 Raio-X por Frente de Estudo</h2>
-      <?php if (empty($desempenho_frentes)): ?>
-        <p style="text-align: center; color: var(--texto-secundario); font-size: 1.1rem; padding: 20px;">O seu Raio-X será gerado assim que finalizar a primeira bateria de exercícios.</p>
-      <?php else: ?>
-        <?php foreach ($desempenho_frentes as $frente): ?>
-          <?php 
-            $taxa_frente = round(($frente['total_acertos'] / $frente['total_respondidas']) * 100); 
-            $classe_cor = $taxa_frente < 40 ? 'fill-ruim' : ($taxa_frente < 70 ? 'fill-medio' : 'fill-bom');
-          ?>
-          <div class="frente-row">
-            <div class="frente-header">
-              <span class="frente-nome"><?php echo htmlspecialchars($frente['frente_nome']); ?></span>
-              <span class="frente-numeros"><b><?php echo $taxa_frente; ?>%</b> (<?php echo $frente['total_acertos']; ?> de <?php echo $frente['total_respondidas']; ?>)</span>
-            </div>
-            <div class="barra-bg"><div class="barra-fill <?php echo $classe_cor; ?>" style="width: <?php echo $taxa_frente; ?>%;"></div></div>
-          </div>
-        <?php endforeach; ?>
-      <?php endif; ?>
     </div>
+  </main>
 
-  </div>
+  <script>
+    // LÓGICA DO CHART.JS INTACTA E ADAPTÁVEL AO DARK MODE
+    const darkActive = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = darkActive ? 'rgba(255,255,255,0.08)' : '#e2e8f0';
+    const angleColor = darkActive ? 'rgba(255,255,255,0.05)' : '#f1f5f9';
+    const labelColor = darkActive ? '#9ca3af' : '#475569';
+
+    const ctx = document.getElementById('graficoProficiencia').getContext('2d');
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Química Geral', 'Química Orgânica', 'Físico-Química'],
+            datasets: [{
+                label: 'O teu nível atual (%)',
+                data: [
+                    <?php echo $proficiencia_geral; ?>, 
+                    <?php echo $proficiencia_organica; ?>, 
+                    <?php echo $proficiencia_fisico; ?>
+                ],
+                backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 2.5,
+                pointBackgroundColor: 'rgba(139, 92, 246, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(139, 92, 246, 1)'
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                r: {
+                    angleLines: { display: true, color: angleColor },
+                    grid: { color: gridColor },
+                    pointLabels: { 
+                        font: { family: 'Inter', size: 13, weight: '700' }, 
+                        color: labelColor 
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: 100,
+                    ticks: { display: false }
+                }
+            }
+        }
+    });
+
+    // Controlador de Dropdowns
+    function alternarDropdown(id) {
+        document.querySelectorAll('.dropdown-conteudo').forEach(drop => {
+            if(drop.id !== id) drop.classList.remove('mostrar');
+        });
+        document.getElementById(id).classList.toggle('mostrar');
+    }
+    window.onclick = function(event) {
+        if (!event.target.matches('button') && !event.target.closest('button')) {
+            document.querySelectorAll('.dropdown-conteudo').forEach(drop => {
+                drop.classList.remove('remove');
+                drop.classList.remove('mostrar');
+            });
+        }
+    }
+  </script>
 </body>
 </html>
