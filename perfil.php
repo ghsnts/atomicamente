@@ -2,7 +2,9 @@
 session_start();
 require_once 'config.php';
 
-// Proteção: Garante que o utilizador está logado
+// OBRIGA O BANCO DE DADOS A MOSTRAR ERROS REAIS SE ALGO FALHAR
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
@@ -15,14 +17,12 @@ $mensagem_erro = "";
 // 1. PROCESSAR O ENVIO DO FORMULÁRIO (GRAVAÇÃO)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $meta_diaria = filter_input(INPUT_POST, 'meta_diaria', FILTER_VALIDATE_INT);
-    $frente_foco = filter_input(INPUT_POST, 'frente_foco', FILTER_DEFAULT);
+    $frente_foco = $_POST['frente_foco'] ?? ''; // Pega o valor exato do select
 
-    // Validações básicas de segurança
     if ($meta_diaria === false || $meta_diaria < 1) {
-        $meta_diaria = 20; // Fallback seguro
+        $meta_diaria = 20; 
     }
     
-    // Validar se a frente enviada pertence ao escopo de Química do site
     $frentes_validas = ['geral', 'fisico', 'organica', 'ambiental', ''];
     if (!in_array($frente_foco, $frentes_validas)) {
         $frente_foco = '';
@@ -35,23 +35,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':foco' => $frente_foco,
             ':uid'  => $user_id
         ]);
-        $mensagem_sucesso = "Preferências de Química atualizadas com sucesso! 🧪";
+        
+        $mensagem_sucesso = "Preferências atualizadas com sucesso! 🧪";
+
     } catch (PDOException $e) {
-        $mensagem_erro = "Erro ao salvar no banco de dados: " . $e->getMessage();
+        $mensagem_erro = "Erro no Banco de Dados: " . $e->getMessage();
     }
 }
 
 // 2. BUSCAR DADOS ATUAIS DO ALUNO PARA PREENCHER O FORMULÁRIO
+$user = []; 
+$meta_atual = 20; 
+$frente_atual = ''; 
+
 try {
-    // Alterado 'name' para 'nome' para bater com o padrão da tua base de dados
     $stmtUser = $pdo->prepare("SELECT nome, email, meta_diaria, frente_foco FROM users WHERE id = :uid");
     $stmtUser->execute([':uid' => $user_id]);
-    $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
+    $dados_banco = $stmtUser->fetch(PDO::FETCH_ASSOC);
 
-    $meta_atual = $user['meta_diaria'] ?? 20;
-    $frente_atual = $user['frente_foco'] ?? '';
+    if ($dados_banco && is_array($dados_banco)) {
+        $user = $dados_banco;
+        // Se acabamos de fazer um POST, forçamos a variável a assumir o valor novo para a tela não piscar/resetar
+        $meta_atual = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $meta_diaria : ($user['meta_diaria'] ?? 20);
+        $frente_atual = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $frente_foco : ($user['frente_foco'] ?? '');
+    }
 } catch (PDOException $e) {
-    die("Erro ao carregar perfil: " . $e->getMessage());
+    $mensagem_erro = "Erro ao ler as preferências: " . $e->getMessage();
 }
 ?>
 <!DOCTYPE html>
@@ -131,20 +140,36 @@ try {
 
   <header class="topo-dash">
     <div class="container nav-dash" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      
       <a href="dashboard.php" class="marca-dash">
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
-        Atomicamente <span class="badge-enem">ENEM</span>
+        Atomicamente <span class="badge-enem">PERFIL</span>
       </a>
       
       <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="dashboard.php" style="color: var(--roxo-base); text-decoration: none; font-weight: 600; font-size: 0.88rem; margin-right: 5px;">← Voltar ao Painel</a>
         
         <div class="menu-dropdown">
-          <button onclick="alternarDropdown('drop-config')" style="background: none; border: 1px solid var(--borda); color: var(--texto-principal); padding: 8px 12px; font-size: 0.88rem; border-radius: 8px; font-weight: 600; cursor: pointer;">🛠️ Configurações</button>
+          <button onclick="alternarDropdown('drop-config')" style="background: none; border: 1px solid var(--borda); color: var(--texto-principal); padding: 8px 12px; font-size: 0.88rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            🛠️ Configurações
+          </button>
           <div id="drop-config" class="dropdown-conteudo">
-            <div class="dropdown-item" onclick="alternarModoNoturno()"><span id="btn-tema-texto">🌙 Modo Escuro</span></div>
+            <div class="dropdown-item" onclick="alternarModoNoturno()">
+              <span id="btn-tema-texto">🌙 Modo Escuro</span>
+            </div>
           </div>
         </div>
+
+        <div class="menu-dropdown">
+          <button onclick="alternarDropdown('drop-perfil')" style="background: var(--roxo-base); color: white; border: none; padding: 8px 14px; font-size: 0.88rem; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            👤 <?php echo explode(' ', $_SESSION['user_nome'] ?? 'Estudante')[0]; ?> <span style="font-size: 0.65rem;">▼</span>
+          </button>
+          <div id="drop-perfil" class="dropdown-conteudo">
+            <a href="dashboard.php" class="dropdown-item">⬅️ Voltar ao Painel</a>
+            <div class="dropdown-divisor"></div>
+            <a href="logout.php" class="dropdown-item sair">🚪 Sair da Conta</a>
+          </div>
+        </div>
+
       </div>
     </div>
   </header>
@@ -164,13 +189,13 @@ try {
       <form action="perfil.php" method="POST">
         
         <div class="form-group">
-  <label class="form-label">Teu Nome</label>
-  <input type="text" class="form-input" value="<?php echo htmlspecialchars($user['nome'] ?? $_SESSION['user_nome'] ?? 'Estudante'); ?>" disabled />
-</div>
+          <label class="form-label">Teu Nome</label>
+          <input type="text" class="form-input" value="<?php echo htmlspecialchars($user['nome'] ?? $_SESSION['user_nome'] ?? 'Estudante'); ?>" disabled />
+        </div>
 
         <div class="form-group">
           <label class="form-label">Endereço de E-mail</label>
-          <input type="email" class="form-input" value="<?php echo htmlspecialchars($user['email']); ?>" disabled />
+          <input type="email" class="form-input" value="<?php echo htmlspecialchars($user['email'] ?? 'Não informado'); ?>" disabled />
         </div>
 
         <hr style="border: 0; height: 1px; background: var(--borda); margin: 25px 0;" />
@@ -178,18 +203,18 @@ try {
 
         <div class="form-group">
           <label class="form-label" for="meta_diaria">Meta Diária de Questões</label>
-          <input type="number" id="meta_diaria" name="meta_diaria" class="form-input" min="1" max="200" value="<?php echo $meta_atual; ?>" required />
+          <input type="number" id="meta_diaria" name="meta_diaria" class="form-input" min="1" max="200" value="<?php echo (int)$meta_atual; ?>" required />
           <small style="color: var(--texto-secundario); font-size: 0.8rem; display: block; margin-top: 4px;">Recomendamos de 15 a 30 questões para manter a consistência.</small>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="frente_foco">Frente de Química com Maior Dificuldade</label>
           <select id="frente_foco" name="frente_foco" class="form-select">
-            <option value="" <?php echo $frente_atual == '' ? 'selected' : ''; ?>>Nenhuma selecionada (Recomendações gerais)</option>
-            <option value="geral" <?php echo $frente_atual == 'geral' ? 'selected' : ''; ?>>Química Geral e Atomística</option>
-            <option value="fisico" <?php echo $frente_atual == 'fisico' ? 'selected' : ''; ?>>Físico-Química (Cálculos e Soluções)</option>
-            <option value="organica" <?php echo $frente_atual == 'organica' ? 'selected' : ''; ?>>Química Orgânica (Cadeias e Funções)</option>
-            <option value="ambiental" <?php echo $frente_atual == 'ambiental' ? 'selected' : ''; ?>>Química Ambiental e Cotidiano</option>
+            <option value="" <?php echo $frente_atual === '' ? 'selected' : ''; ?>>Nenhuma selecionada (Recomendações gerais)</option>
+            <option value="geral" <?php echo $frente_atual === 'geral' ? 'selected' : ''; ?>>Química Geral e Atomística</option>
+            <option value="fisico" <?php echo $frente_atual === 'fisico' ? 'selected' : ''; ?>>Físico-Química (Cálculos e Soluções)</option>
+            <option value="organica" <?php echo $frente_atual === 'organica' ? 'selected' : ''; ?>>Química Orgânica (Cadeias e Funções)</option>
+            <option value="ambiental" <?php echo $frente_atual === 'ambiental' ? 'selected' : ''; ?>>Química Ambiental e Cotidiano</option>
           </select>
           <small style="color: var(--texto-secundario); font-size: 0.8rem; display: block; margin-top: 4px;">O teu Painel Inicial vai sugerir tópicos prioritários com base nesta escolha.</small>
         </div>
@@ -200,11 +225,15 @@ try {
   </main>
 
   <script>
+    // Lógica para os dropdowns do cabeçalho funcionarem
     function alternarDropdown(id) {
+        document.querySelectorAll('.dropdown-conteudo').forEach(drop => {
+            if(drop.id !== id) drop.classList.remove('mostrar');
+        });
         document.getElementById(id).classList.toggle('mostrar');
     }
     window.onclick = function(event) {
-        if (!event.target.matches('button')) {
+        if (!event.target.matches('button') && !event.target.closest('button')) {
             document.querySelectorAll('.dropdown-conteudo').forEach(drop => drop.classList.remove('mostrar'));
         }
     }
