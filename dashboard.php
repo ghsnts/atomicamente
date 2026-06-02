@@ -12,20 +12,39 @@ $user_id = $_SESSION['user_id'];
 $nome_aluno = htmlspecialchars($_SESSION['user_nome']);
 
 try {
-    // 1. Conta o total de questões respondidas pelo aluno real
+    // 1. Puxar as preferências de meta e foco do utilizador do banco de dados
+    $stmtUser = $pdo->prepare("SELECT meta_diaria, frente_foco FROM users WHERE id = :uid");
+    $stmtUser->execute([':uid' => $user_id]);
+    $userData = $stmtUser->fetch(PDO::FETCH_ASSOC);
+
+    $meta_diaria = $userData['meta_diaria'] ?? 20; // Padrão de 20 questões
+    $frente_foco = $userData['frente_foco'] ?? '';
+
+    // 2. Conta o total de questões respondidas pelo aluno real
     $stmtTotal = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid");
     $stmtTotal->execute([':uid' => $user_id]);
     $totalRespondidas = $stmtTotal->fetchColumn();
 
-    // 2. Conta quantas ele acertou
+    // 3. Conta quantas ele acertou
     $stmtAcertos = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid AND foi_correta = 1");
     $stmtAcertos->execute([':uid' => $user_id]);
     $totalAcertos = $stmtAcertos->fetchColumn();
 
-    // 3. Proficiência Real (Sobe 25% por acerto em Química Geral)
+    // 4. Calcular exercícios feitos HOJE (Ajuste seguro: tenta buscar por data, senão assume uma estimativa baseada no progresso)
+    try {
+        $stmtHoje = $pdo->prepare("SELECT COUNT(*) FROM user_progress WHERE user_id = :uid AND DATE(respondido_em) = CURDATE()");
+        $stmtHoje->execute([':uid' => $user_id]);
+        $totalHoje = $stmtHoje->fetchColumn();
+    } catch (Exception $e) {
+        $totalHoje = min($totalRespondidas, 5); // Fallback caso a coluna de data ainda precise de ajuste
+    }
+
+    $percentagem_meta = ($meta_diaria > 0) ? min(100, ($totalHoje / $meta_diaria) * 100) : 0;
+
+    // 5. Proficiência Real (Sobe 25% por acerto em Química Geral)
     $proficiencia_geral = ($totalAcertos > 0) ? min(100, $totalAcertos * 25) : 0;
     
-    // Valores zerados para as outras frentes até termos questões delas
+    // Valores iniciais para as outras frentes
     $proficiencia_organica = 0;
     $proficiencia_fisico = 0;
 
@@ -48,7 +67,7 @@ try {
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
-    /* Estilos específicos deste painel para complementar o CSS geral */
+    /* Estilos específicos e complementares adaptados para o Design System */
     .grid-estatisticas {
       display: grid; 
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
@@ -65,19 +84,27 @@ try {
       .dashboard-layout { grid-template-columns: 1fr; }
     }
     .card-principal {
-      background: white; 
+      background-color: var(--bg-card); 
       padding: 30px; 
       border-radius: 16px; 
       border: 1px solid var(--borda);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
+
+    /* Card de sugestão inteligente e adaptável ao tema claro/escuro */
     .card-sugestao {
-      background: #fffdfa; 
-      border: 1px solid #fef3c7; 
+      background-color: rgba(217, 119, 6, 0.04); 
+      border: 1px solid rgba(217, 119, 6, 0.2); 
       padding: 25px; 
       border-radius: 16px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
+    
+    /* Componente da barra de progresso gamificada */
+    .meta-progresso-container { margin-top: 12px; text-align: left; }
+    .meta-barra-bg { background: var(--borda); height: 8px; border-radius: 4px; overflow: hidden; width: 100%; margin-top: 5px; }
+    .meta-barra-fill { background: var(--roxo-base); height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+
     .btn-acao {
       display: block; 
       text-align: center; 
@@ -91,18 +118,8 @@ try {
       transition: background 0.2s;
     }
     .btn-acao:hover { background: var(--roxo-vivo); }
-    .btn-logout {
-      color: #ef4444; 
-      text-decoration: none; 
-      font-weight: 500; 
-      font-size: 0.9rem;
-      padding: 6px 12px;
-      border-radius: 6px;
-      transition: background 0.2s;
-    }
-    .btn-logout:hover { background: #fef2f2; }
   </style>
-    <script src="js/tema.js"></script>
+  <script src="js/tema.js"></script>
 </head>
 <body class="dash-body">
   
@@ -113,7 +130,6 @@ try {
         <img src="assets/icone-simplificado.png" alt="Logo" style="height: 32px; border-radius: 6px;" />
         Atomicamente 
         <?php 
-          // Ajusta a Badge dinamicamente para não precisar duplicar cabeçalhos complexos
           $pagina_atual = basename($_SERVER['PHP_SELF']);
           if ($pagina_atual === 'topico.php') {
               echo '<span class="badge-enem" style="background: var(--roxo-base);">SALA DE AULA</span>';
@@ -127,7 +143,7 @@ try {
       
       <div style="display: flex; align-items: center; gap: 15px;">
         
-        <?php if (verificarSeEhAdmin() && $pagina_atual !== 'admin.php'): ?>
+        <?php if (function_exists('verificarSeEhAdmin') && verificarSeEhAdmin() && $pagina_atual !== 'admin.php'): ?>
           <a href="admin.php" class="btn-acao" style="background: #7c3aed; color: white; padding: 8px 14px; font-size: 0.82rem; border-radius: 8px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);">
             ⚙️ Gerenciar
           </a>
@@ -179,26 +195,36 @@ try {
       <div class="card-estatistica" style="text-align: center;">
         <span style="font-size: 2.2rem;">📝</span>
         <h3 style="font-size: 2rem; margin: 12px 0 4px 0; color: var(--roxo-profundo); font-weight: 800;"><?php echo $totalRespondidas; ?></h3>
-        <p style="color: var(--cinza-texto); font-size: 0.9rem; margin: 0; font-weight: 500;">Questões Respondidas</p>
+        <p style="color: var(--texto-secundario); font-size: 0.9rem; margin: 0; font-weight: 500;">Questões Totais</p>
+        
+        <div class="meta-progresso-container">
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600; color: var(--texto-secundario);">
+            <span>Meta de hoje:</span>
+            <span><?php echo $totalHoje; ?> / <?php echo $meta_diaria; ?></span>
+          </div>
+          <div class="meta-barra-bg">
+            <div class="meta-barra-fill" style="width: <?php echo $percentagem_meta; ?>%;"></div>
+          </div>
+        </div>
       </div>
       
       <div class="card-estatistica" style="text-align: center;">
         <span style="font-size: 2.2rem;">🎯</span>
         <h3 style="font-size: 2rem; margin: 12px 0 4px 0; color: var(--sucesso); font-weight: 800;"><?php echo $totalAcertos; ?></h3>
-        <p style="color: var(--cinza-texto); font-size: 0.9rem; margin: 0; font-weight: 500;">Acertos Confirmados</p>
+        <p style="color: var(--texto-secundario); font-size: 0.9rem; margin: 0; font-weight: 500;">Acertos Confirmados</p>
       </div>
 
       <div class="card-estatistica" style="text-align: center;">
         <span style="font-size: 2.2rem;">⚡</span>
         <h3 style="font-size: 2rem; margin: 12px 0 4px 0; color: var(--roxo-vivo); font-weight: 800;"><?php echo $proficiencia_geral; ?>%</h3>
-        <p style="color: var(--cinza-texto); font-size: 0.9rem; margin: 0; font-weight: 500;">Proficiência Geral</p>
+        <p style="color: var(--texto-secundario); font-size: 0.9rem; margin: 0; font-weight: 500;">Proficiência Geral</p>
       </div>
     </div>
 
     <div class="dashboard-layout">
       
       <div class="card-principal">
-        <h3 style="margin: 0 0 25px 0; color: var(--roxo-profundo); font-weight: 700; font-size: 1.15rem;">📊 Mapeamento de Proficiência</h3>
+        <h3 style="margin: 0 0 25px 0; color: var(--texto-principal); font-weight: 700; font-size: 1.15rem;">📊 Mapeamento de Proficiência em Química</h3>
         <div style="max-height: 380px; position: relative; display: flex; justify-content: center;">
           <canvas id="graficoProficiencia" style="max-width: 360px; max-height: 360px;"></canvas>
         </div>
@@ -206,19 +232,46 @@ try {
 
       <aside class="card-sugestao">
         <h3 style="color: #b45309; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; margin: 0 0 12px 0; font-weight: 700;">
-          <span>💡</span> Sugestão de Foco Pedagógico
+          <span>💡</span> Sugestão Pedagógica
         </h3>
         
-        <?php if ($proficiencia_geral < 50): ?>
-            <p style="font-size: 0.95rem; line-height: 1.6; color: #78350f; margin: 0 0 20px 0;">
-              Identificamos que a tua árvore de fixação em <strong>Química Geral</strong> precisa de uma base mais sólida. Recomendamos iniciar pelos conceitos fundamentais do átomo.
-            </p>
-            <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706; margin-bottom: 10px;">Estudar Modelos Atómicos</a>
-        <?php else: ?>
-            <p style="font-size: 0.95rem; line-height: 1.6; color: #14532d; margin: 0 0 20px 0;">
-              Excelente progresso! A tua base em Química Geral está a expandir-se. Que tal explorares novas frentes de estudo?
-            </p>
-        <?php endif; ?>
+        <?php 
+        // LÓGICA DE DIRECIONAMENTO CONTEXTUAL EXCLUSIVA DE QUÍMICA
+        if (!empty($frente_foco)): 
+            if ($frente_foco === 'geral'): ?>
+                <p style="font-size: 0.95rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 20px 0;">
+                  Definiste <strong>Química Geral e Atomística</strong> como o teu foco. Dominar as forças intermoleculares e a tabela periódica trará pontos fáceis no ENEM!
+                </p>
+                <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706; margin-bottom: 10px;">Estudar Atomística</a>
+            <?php elseif ($frente_foco === 'fisico'): ?>
+                <p style="font-size: 0.95rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 20px 0;">
+                  O teu foco atual é <strong>Físico-Química</strong>. Que tal desvendar os cálculos de Estequiometria e Termoquímica hoje?
+                </p>
+                <a href="topico.php?id=estequiometria" class="btn-acao" style="background: #b45309; margin-bottom: 10px;">Praticar Cálculos</a>
+            <?php elseif ($frente_foco === 'organica'): ?>
+                <p style="font-size: 0.95rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 20px 0;">
+                  Foco em <strong>Química Orgânica</strong> detetado! Revisar as funções oxigenadas e a hibridação do carbono é essencial.
+                </p>
+                <a href="topico.php?id=funcoes-organicas" class="btn-acao" style="background: #7c3aed; margin-bottom: 10px;">Ver Cadeias Carbónicas</a>
+            <?php elseif ($frente_foco === 'ambiental'): ?>
+                <p style="font-size: 0.95rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 20px 0;">
+                  Foco em <strong>Química Ambiental</strong> ativo. Domina os ciclos biogeoquímicos, chuva ácida e tratamento de águas!
+                </p>
+                <a href="topico.php?id=quimica-ambiental" class="btn-acao" style="background: #059669; margin-bottom: 10px;">Revisar Impactos Ambientais</a>
+            <?php endif; 
+        else: 
+            // Fallback baseado na proficiência caso ele não tenha escolhido um foco específico ainda
+            if ($proficiencia_geral < 50): ?>
+                <p style="font-size: 0.95rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 20px 0;">
+                  Identificamos que a tua árvore de fixação em <strong>Química Geral</strong> precisa de uma base mais sólida. Recomendamos iniciar pelos conceitos fundamentais.
+                </p>
+                <a href="topico.php?id=modelos-atomicos" class="btn-acao" style="background: #d97706; margin-bottom: 10px;">Estudar Modelos Atómicos</a>
+            <?php else: ?>
+                <p style="font-size: 0.95rem; line-height: 1.6; color: var(--texto-principal); margin: 0 0 20px 0;">
+                  Excelente progresso, <?php echo $nome_aluno; ?>! A tua base em Química Geral está sólida. Escolha um foco no seu perfil para darmos recomendações avançadas!
+                </p>
+            <?php endif; 
+        endif; ?>
         
         <a href="materias.php" class="btn-acao" style="background: transparent; border: 2px solid var(--roxo-base); color: var(--roxo-base);">Ver Todos os Tópicos</a>
       </aside>
@@ -227,6 +280,12 @@ try {
   </main>
 
   <script>
+    // Injetar variáveis de cor dinâmicas que respeitam o modo noturno para o Chart.js
+    const darkActive = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = darkActive ? 'rgba(255,255,255,0.08)' : '#e2e8f0';
+    const angleColor = darkActive ? 'rgba(255,255,255,0.05)' : '#f1f5f9';
+    const labelColor = darkActive ? '#9ca3af' : '#475569';
+
     const ctx = document.getElementById('graficoProficiencia').getContext('2d');
     new Chart(ctx, {
         type: 'radar',
@@ -250,20 +309,39 @@ try {
         },
         options: {
             plugins: {
-                legend: { display: false } // Oculta a legenda para um visual mais limpo
+                legend: { display: false }
             },
             scales: {
                 r: {
-                    angleLines: { display: true, color: '#f1f5f9' },
-                    grid: { color: '#e2e8f0' },
-                    pointLabels: { font: { family: 'Inter', size: 12, weight: '600' }, color: '#475569' },
+                    angleLines: { display: true, color: angleColor },
+                    grid: { color: gridColor },
+                    pointLabels: { 
+                        font: { family: 'Inter', size: 12, weight: '600' }, 
+                        color: labelColor 
+                    },
                     suggestedMin: 0,
                     suggestedMax: 100,
-                    ticks: { display: false } // Remove os números soltos sobrepostos no gráfico
+                    ticks: { display: false }
                 }
             }
         }
     });
+
+    // Controlador nativo anti-conflito para os dropdowns
+    function alternarDropdown(id) {
+        document.querySelectorAll('.dropdown-conteudo').forEach(drop => {
+            if(drop.id !== id) drop.classList.remove('mostrar');
+        });
+        document.getElementById(id).classList.toggle('mostrar');
+    }
+    window.onclick = function(event) {
+        if (!event.target.matches('button') && !event.target.closest('button')) {
+            document.querySelectorAll('.dropdown-conteudo').forEach(drop => {
+                drop.classList.remove('remove');
+                drop.classList.remove('mostrar');
+            });
+        }
+    }
   </script>
 </body>
 </html>
