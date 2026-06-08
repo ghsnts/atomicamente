@@ -4,6 +4,19 @@ require_once 'config.php';
 
 $erro = '';
 
+// Pool expandido de mensagens para manter a sintonia com o cadastro
+$frases = [
+    "A sua aprovação é uma reação em cadeia. Continue firme! ⚛️",
+    "Transforme o esforço em conhecimento: a verdadeira alquimia dos estudos. 🧪",
+    "Foco puro hoje! Deixe que todas as distrações evaporem. 🌪️",
+    "Pronto para quebrar as ligações das dúvidas e construir novas certezas? 🧬",
+    "Pequenos passos diários geram grandes compostos de sucesso. 🔬",
+    "Cada erro nos simulados é apenas um catalisador para o seu aprendizado. 📈",
+    "Você é feito de átomos que se formaram no coração das estrelas. Brilhe! ✨",
+    "O sucesso não se cria do nada, ele se transforma através da constância. 🔋"
+];
+$fraseDoDia = $frases[array_rand($frases)];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $senha = trim($_POST['senha']);
@@ -12,18 +25,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->execute([':email' => $email]);
     $user = $stmt->fetch();
 
-    // Verifica se o usuário existe e se a senha criptografada bate certo
     if ($user && password_verify($senha, $user['password_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['user_nome'] = $user['nome'];
-        $_SESSION['user_role'] = $user['role_id'];
-        $_SESSION['user_email'] = $user['email']; // <-- ADICIONA ESTA LINHA AQUI!
         
-        // Redireciona para o painel
-        header("Location: dashboard.php");
-        exit;
+        // REQUISITO DE VERIFICAÇÃO DE E-MAIL
+        if (isset($user['email_verificado']) && !$user['email_verificado']) {
+            $erro = "Por favor, verifique o seu e-mail antes de acessar a plataforma.";
+        } else {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_nome'] = $user['nome'];
+            $_SESSION['user_role'] = $user['role_id'];
+            $_SESSION['user_email'] = $user['email'];
+            
+            header("Location: dashboard.php");
+            exit;
+        }
     } else {
-        $erro = "Email ou senha incorretos.";
+        $erro = "E-mail ou senha incorretos.";
     }
 }
 ?>
@@ -31,25 +48,341 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login | Atomicamente</title>
+  <!-- Fontes Premium do Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/plataforma.css">
+  
   <style>
-    .auth-box { max-width: 400px; margin: 80px auto; background: white; padding: 40px; border-radius: 16px; border: 1px solid var(--borda); text-align: center; }
-    .auth-input { width: 100%; padding: 12px; margin: 10px 0 20px; border: 1px solid var(--borda); border-radius: 8px; box-sizing: border-box; }
-    .auth-btn { width: 100%; padding: 12px; background: var(--roxo-base); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    /* Reset e Layout Unificado */
+    body.dash-body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+        font-family: 'Inter', sans-serif;
+        background: radial-gradient(circle at center, #1e112a 0%, #0d0614 100%);
+    }
+
+    #bg-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: all;
+    }
+
+    /* Container Glassmorphism de Alta Definição */
+    .auth-container {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        max-width: 420px;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 24px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .auth-container:hover {
+        transform: translateY(-2px);
+        border-color: rgba(147, 51, 234, 0.25);
+        box-shadow: 0 30px 60px rgba(147, 51, 234, 0.12);
+    }
+
+    .auth-logo {
+        height: 55px;
+        margin-bottom: 18px;
+        filter: drop-shadow(0 0 12px rgba(147, 51, 234, 0.4));
+    }
+
+    .auth-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #ffffff;
+        font-size: 1.8rem;
+        margin: 0 0 8px 0;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+
+    .auth-subtitle {
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 0.9rem;
+        margin: 0 0 25px 0;
+        font-style: italic;
+        line-height: 1.4;
+    }
+
+    .input-group {
+        position: relative;
+        margin-bottom: 16px;
+        text-align: left;
+    }
+
+    .auth-input {
+        width: 100%;
+        padding: 14px 16px;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .auth-input:focus {
+        outline: none;
+        border-color: #a855f7;
+        background: rgba(0, 0, 0, 0.45);
+        box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2);
+    }
+
+    .auth-input::placeholder {
+        color: rgba(255, 255, 255, 0.25);
+    }
+
+    .auth-btn {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.25);
+        margin-top: 8px;
+    }
+
+    .auth-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+        filter: brightness(1.08);
+    }
+
+    .msg-erro {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 0.88rem;
+    }
+
+    .auth-footer {
+        margin-top: 25px;
+        font-size: 0.88rem;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .auth-link {
+        color: #a855f7;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .auth-link:hover {
+        color: #c084fc;
+        text-decoration: underline;
+    }
   </style>
 </head>
 <body class="dash-body">
-  <div class="auth-box">
-    <img src="assets/icone-simplificado.png" alt="Logo" style="height: 50px; margin-bottom: 15px;">
-    <h2 style="color: var(--roxo-base); margin-bottom: 20px;">Bem-vindo de volta!</h2>
-    <?php if($erro): ?> <p style="color: red; margin-bottom: 15px;"><?php echo $erro; ?></p> <?php endif; ?>
+
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="auth-container">
+    <img src="assets/icone-simplificado.png" alt="Atomicamente Logo" class="auth-logo">
+    <h2 class="auth-title">Atomicamente</h2>
+    <p class="auth-subtitle">"<?php echo $fraseDoDia; ?>"</p>
+
+    <?php if($erro): ?>
+        <div class="msg-erro">⚠️ <?php echo htmlspecialchars($erro); ?></div>
+    <?php endif; ?>
+
     <form method="POST">
-      <input type="email" name="email" class="auth-input" placeholder="O teu Email" required>
-      <input type="password" name="senha" class="auth-input" placeholder="A tua Senha" required>
-      <button type="submit" class="auth-btn">Entrar</button>
+      <div class="input-group">
+        <input type="email" name="email" class="auth-input" placeholder="Seu e-mail de estudante" required autocomplete="email">
+      </div>
+      <div class="input-group">
+        <input type="password" name="senha" class="auth-input" placeholder="Sua senha secreta" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="auth-btn">Iniciar Reação (Entrar)</button>
     </form>
-    <p style="margin-top: 15px; font-size: 0.9rem;">Novo por aqui? <a href="cadastro.php" style="color: var(--roxo-vivo);">Criar conta</a></p>
+
+    <p class="auth-footer">Novo por aqui? <a href="cadastro.php" class="auth-link">Criar conta</a></p>
   </div>
+
+  <script>
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let particles = [];
+    let floatingTexts = [];
+    const mouse = { x: null, y: null, radius: 130 };
+    
+    // Lista de palavras motivacionais desordenadas
+    const palavrasSuporte = ["Você consegue!", "Foco total", "Evolução", "Reação", "Constância", "Persista", "Mais um passo", "Aprovação", "Alquimia", "Mentalidade"];
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+    window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2.5 + 1;
+            this.speedX = (Math.random() - 0.5) * 0.6;
+            this.speedY = (Math.random() - 0.5) * 0.6;
+        }
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+
+            if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
+            if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
+
+            if (mouse.x != null && mouse.y != null) {
+                let dx = this.x - mouse.x;
+                let dy = this.y - mouse.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < mouse.radius) {
+                    let force = (mouse.radius - distance) / mouse.radius;
+                    this.x += (dx / distance) * force * 2.5;
+                    this.y += (dy / distance) * force * 2.5;
+                }
+            }
+        }
+        draw() {
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    class FloatingText {
+        constructor() {
+            this.reset();
+            this.opacity = Math.random() * 0.2;
+        }
+        reset() {
+            this.x = Math.random() * (canvas.width - 150) + 50;
+            this.y = Math.random() * (canvas.height - 50) + 25;
+            this.text = palavrasSuporte[Math.floor(Math.random() * palavrasSuporte.length)];
+            this.speedY = -(Math.random() * 0.15 + 0.05);
+            this.opacity = 0;
+            this.fadeSpeed = Math.random() * 0.003 + 0.0015;
+            this.state = 'fadeIn'; 
+            this.maxOpacity = Math.random() * 0.22 + 0.08; 
+            this.holdTime = Math.random() * 100 + 50;
+            this.currentHold = 0;
+        }
+        update() {
+            this.y += this.speedY;
+
+            if (this.state === 'fadeIn') {
+                this.opacity += this.fadeSpeed;
+                if (this.opacity >= this.maxOpacity) {
+                    this.opacity = this.maxOpacity;
+                    this.state = 'hold';
+                }
+            } else if (this.state === 'hold') {
+                this.currentHold++;
+                if (this.currentHold >= this.holdTime) {
+                    this.state = 'fadeOut';
+                }
+            } else if (this.state === 'fadeOut') {
+                this.opacity -= this.fadeSpeed;
+                if (this.opacity <= 0) {
+                    this.reset();
+                }
+            }
+        }
+        draw() {
+            ctx.font = '500 11px "Plus Jakarta Sans", sans-serif';
+            ctx.fillStyle = `rgba(216, 180, 254, ${this.opacity})`;
+            ctx.letterSpacing = "1px";
+            ctx.fillText(this.text, this.x, this.y);
+        }
+    }
+
+    function init() {
+        particles = [];
+        floatingTexts = [];
+        
+        const numParticles = Math.floor((canvas.width * canvas.height) / 9500);
+        for (let i = 0; i < numParticles; i++) {
+            particles.push(new Particle());
+        }
+
+        const numTexts = Math.floor(canvas.width / 250); 
+        for (let i = 0; i < numTexts; i++) {
+            floatingTexts.push(new FloatingText());
+        }
+    }
+
+    function connectParticles() {
+        for (let a = 0; a < particles.length; a++) {
+            for (let b = a; b < particles.length; b++) {
+                let dx = particles[a].x - particles[b].x;
+                let dy = particles[a].y - particles[b].y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 100) {
+                    let opacity = (1 - (distance / 100)) * 0.12;
+                    ctx.strokeStyle = `rgba(124, 58, 237, ${opacity})`;
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(particles[a].x, particles[a].y);
+                    ctx.lineTo(particles[b].x, particles[b].y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        floatingTexts.forEach(t => { t.update(); t.draw(); });
+        particles.forEach(p => { p.update(); p.draw(); });
+        
+        connectParticles();
+        requestAnimationFrame(animate);
+    }
+
+    init();
+    animate();
+    window.addEventListener('resize', init);
+  </script>
 </body>
 </html>
