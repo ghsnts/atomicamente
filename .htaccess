@@ -1,0 +1,104 @@
+# ============================================================
+# ARQUIVO .htaccess - Segurança e Configurações Apache
+# ============================================================
+
+# Ativa mod_rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+# ============================================================
+# SEGURANÇA: Protege arquivos sensíveis
+# ============================================================
+
+# Protege arquivo .env
+<FilesMatch "\.env$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protege arquivo config.php
+<FilesMatch "^config\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protege pasta database
+<DirectoryMatch "^.*\/database\/.*$">
+    Order allow,deny
+    Deny from all
+</DirectoryMatch>
+
+# ============================================================
+# HTTPS - Força redirecionamento seguro
+# ============================================================
+# Descomente as linhas abaixo em PRODUÇÃO
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+# ============================================================
+# HEADERS de Segurança
+# ============================================================
+<IfModule mod_headers.c>
+    # Previne MIME type sniffing
+    Header set X-Content-Type-Options "nosniff"
+    
+    # Evita clickjacking
+    Header set X-Frame-Options "SAMEORIGIN"
+    
+    # Protege contra XSS
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Disable directory listing
+    Header set X-Powered-By ""
+</IfModule>
+
+# ============================================================
+# DESABILITA DIRECTORY LISTING (Importante!)
+# ============================================================
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+# ============================================================
+# CACHE (Opcional - otimiza velocidade)
+# ============================================================
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Imagens
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    
+    # CSS e JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    
+    # HTML (não cachea - para updates)
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# ============================================================
+# COMPRESSÃO GZIP (Opcional - melhora velocidade)
+# ============================================================
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+</IfModule>
