@@ -55,21 +55,20 @@ try {
     $proficiencia_geral = ($totalRespondidas > 0) ? min(100, round(($totalAcertos / $totalRespondidas) * 100)) : 0;
 
     // =========================================================================================
-    // 3. DADOS DO RADAR (GRÁFICO INTERATIVO) - BUSCANDO DO BANCO DE DADOS REAL
+    // 3. DADOS DO RADAR (GRÁFICO INTERATIVO) - CORRIGIDO PARA USAR TOPICOS E FRENTES
     // =========================================================================================
     
-    // 3.1 Busca o desempenho detalhado por SUBTÓPICOS
-    // Usa a tabela 'subtopics', onde o texto se chama 'titulo'
+    // 3.1 Busca o desempenho detalhado por TÓPICOS (Assumindo que q.subtopic_id guarda o ID do tópico)
     $stmtRadarSub = $pdo->prepare("
         SELECT 
-            st.titulo as titulo, 
+            t.nome as titulo, 
             COUNT(up.id) as total_respondidas, 
             SUM(up.is_correct) as total_acertos
         FROM user_progress up
         JOIN questions q ON up.question_id = q.id
-        JOIN subtopics st ON q.subtopic_id = st.id
+        JOIN topicos t ON q.subtopic_id = t.id
         WHERE up.user_id = :uid
-        GROUP BY st.id
+        GROUP BY t.id
         ORDER BY total_respondidas DESC 
         LIMIT 6
     ");
@@ -85,24 +84,22 @@ try {
             $scoresSub[] = round(($row['total_acertos'] / $row['total_respondidas']) * 100);
         }
     } else {
-        // Fallback elegante caso o aluno não tenha feito questões suficientes ainda
         $labelsSub = ['Atomística', 'Ligações', 'Funções Org.', 'Estequiometria', 'Soluções'];
         $scoresSub = [$proficiencia_geral, 0, 0, 0, 0];
     }
 
-    // 3.2 Busca o desempenho detalhado por ÁREA GERAL (Subjects)
-    // Usa a tabela 'subjects', onde o texto se chama 'nome'
+    // 3.2 Busca o desempenho detalhado por FRENTES (Área Geral)
     $stmtRadarTop = $pdo->prepare("
         SELECT 
-            sb.nome as titulo, 
+            f.nome as titulo, 
             COUNT(up.id) as total_respondidas, 
             SUM(up.is_correct) as total_acertos
         FROM user_progress up
         JOIN questions q ON up.question_id = q.id
-        JOIN subtopics st ON q.subtopic_id = st.id
-        JOIN subjects sb ON st.subject_id = sb.id
+        JOIN topicos t ON q.subtopic_id = t.id
+        JOIN frentes f ON t.frente_id = f.id
         WHERE up.user_id = :uid
-        GROUP BY sb.id
+        GROUP BY f.id
         ORDER BY total_respondidas DESC 
         LIMIT 6
     ");
@@ -118,7 +115,6 @@ try {
             $scoresTop[] = round(($row['total_acertos'] / $row['total_respondidas']) * 100);
         }
     } else {
-        // Fallback elegante para Tópicos Gerais
         $labelsTop = ['Química Geral', 'Físico-Química', 'Orgânica', 'Ambiental', 'Analítica'];
         $scoresTop = [$proficiencia_geral, ($proficiencia_geral > 10 ? $proficiencia_geral - 10 : 0), 0, 0, 0];
     }
