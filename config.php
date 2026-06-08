@@ -1,10 +1,39 @@
 <?php
-// config.php - Conexão Base Segura via PDO
-$host = 'localhost';
-$db   = 'atomicamente_db';
-$user = 'root';
-$pass = 'vertrigo'; // No Vertrigo a senha padrão do root costuma ser vazia ou 'vertrigo'
-$charset = 'utf8mb4';
+// config.php - Conexão Segura via PDO com Variáveis de Ambiente
+// ================================================================
+
+// Carrega variáveis de ambiente do arquivo .env se existir
+if (file_exists(__DIR__ . '/.env')) {
+    $envFile = file_get_contents(__DIR__ . '/.env');
+    $lines = explode("\n", $envFile);
+    
+    foreach ($lines as $line) {
+        $line = trim($line);
+        // Ignora comentários e linhas vazias
+        if (empty($line) || strpos($line, '#') === 0) {
+            continue;
+        }
+        
+        // Parse KEY=VALUE
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            // Remove aspas se existirem
+            $value = trim($value, '"\'');
+            putenv("$key=$value");
+        }
+    }
+}
+
+// ============================================================
+// CONFIGURAÇÃO DE BANCO DE DADOS
+// ============================================================
+$host = getenv('DB_HOST') ?: 'localhost';
+$db   = getenv('DB_NAME') ?: 'atomicamente_db';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') ?: '';
+$charset = getenv('DB_CHARSET') ?: 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [
@@ -14,28 +43,56 @@ $options = [
 ];
 
 try {
-     $pdo = new PDO($dsn, $user, $pass, $options);
+    $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-     die("Erro crítico de ligação: " . $e->getMessage());
+    // Em desenvolvimento, mostra o erro
+    if (getenv('APP_ENV') === 'development') {
+        die("Erro crítico de ligação: " . $e->getMessage());
+    } else {
+        // Em produção, mostra mensagem genérica por segurança
+        die("Desculpe, houve um erro na conexão com o servidor. Por favor, tente novamente mais tarde.");
+    }
 }
 
-// WHITELIST DE ADMINISTRADORAS (Apenas estes emails têm acesso ao Painel Admin)
-$GLOBALS['ADMIN_EMAILS'] = [
-    'gustavo4.santos@alunos.ifsuldeminas.edu.br',
-    'mfernanda.cardoso20@gmail.com',
-    'lialvarenga8888@gmail.com',
-    'anajuliag903@gmail.com',
-    'larissa3.carvalho@alunos.ifsuldeminas.edu.br',
-    'ritacborges070209@gmail.com',
-    'ana4.rosa@alunos.ifsuldeminas.edu.br',
-    'maria2.cardoso@alunos.ifsuldeminas.edu.br' // Adiciona aqui o teu email para testares!
-];
+// ============================================================
+// WHITELIST DE ADMINISTRADORAS (SEGURO)
+// ============================================================
+$adminEmailsEnv = getenv('ADMIN_EMAILS');
+if ($adminEmailsEnv) {
+    // Se estiver em variável de ambiente, usa essa
+    $GLOBALS['ADMIN_EMAILS'] = array_map('trim', explode(',', $adminEmailsEnv));
+} else {
+    // Fallback para desenvolvimento (REMOVA EM PRODUÇÃO)
+    $GLOBALS['ADMIN_EMAILS'] = [
+        // Adicione aqui os emails de administradores
+        // Exemplo:
+        // 'seu_email@exemplo.com',
+        // 'outro_admin@exemplo.com',
+    ];
+}
 
-// Função auxiliar para verificar se o usuário atual é admin
+// ============================================================
+// FUNÇÃO AUXILIAR PARA VERIFICAR SE USUÁRIO É ADMIN
+// ============================================================
 function verificarSeEhAdmin() {
     if (!isset($_SESSION['user_email'])) {
         return false;
     }
     return in_array($_SESSION['user_email'], $GLOBALS['ADMIN_EMAILS']);
 }
+
+// ============================================================
+// SEGURANÇA ADICIONAL
+// ============================================================
+
+// Força HTTPS em produção
+if (getenv('FORCE_HTTPS') === 'true' && empty($_SERVER['HTTPS'])) {
+    header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+    exit();
+}
+
+// Define headers de segurança
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
 ?>
