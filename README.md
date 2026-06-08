@@ -186,8 +186,7 @@ Este é um projeto académico desenvolvido por:
 
 ### Equipa de Desenvolvimento
 * **Gustavo Santos** (Backend/DevOps) — [@ghsnts](https://github.com/ghsnts)
-* **Alunos de Química do IFSULDEMINAS** — Conteúdo e Conceitos
-* **Alunos de Informática do IFSULDEMINAS** — Desenvolvimento
+* **Alunas de Química do IFSULDEMINAS** — Conteúdo e Conceitos
 
 ### Como Contribuir
 1. Faça fork do repositório
