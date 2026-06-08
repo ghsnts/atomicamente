@@ -1,5 +1,12 @@
-# Configurações locais sensíveis (Protege as tuas senhas de BD)
+# ============================================================
+# ARQUIVO .gitignore - Proteção de Dados Sensíveis
+# ============================================================
+
+# Configurações sensíveis (NUNCA commitar senhas!)
 config.php
+.env
+.env.local
+.env.*.local
 
 # Ficheiros do Sistema Operativo
 Thumbs.db
@@ -15,3 +22,32 @@ Thumbs.db
 
 # Ficheiros de Log
 *.log
+logs/
+
+# Cache e arquivos temporários
+.cache/
+tmp/
+temp/
+
+# Node modules (se usar npm/webpack)
+node_modules/
+package-lock.json
+
+# Composer (se usar PHP Composer)
+vendor/
+composer.lock
+
+# Banco de dados local
+*.sqlite
+*.db
+
+# Arquivos de backup
+*.bak
+*.backup
+*.sql.backup
+
+# IDE específicas
+.netbeans/
+.eclipse/
+.sublime-project
+.sublime-workspace
