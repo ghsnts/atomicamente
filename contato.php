@@ -87,7 +87,6 @@ session_start();
         font-weight: 800; color: #7c3aed; letter-spacing: -0.5px;
     }
 
-    /* A Badge do Contato */
     .header-badge {
         background: linear-gradient(135deg, #7c3aed, #a855f7);
         color: white;
@@ -100,7 +99,6 @@ session_start();
         display: flex; align-items: center; gap: 16px;
     }
 
-    /* Botão Theme Toggle Premium */
     .theme-toggle-btn {
         background: var(--icon-wrapper-bg); border: 1px solid var(--card-border);
         color: #a855f7; cursor: pointer;
@@ -117,7 +115,6 @@ session_start();
         width: 20px; height: 20px; fill: currentColor; transition: transform 0.5s ease;
     }
 
-    /* Oculta o ícone de sol ou lua com base no tema ativo */
     body:not(.dark-theme) .icon-sun, body.dark-theme .icon-moon { display: none; }
     body.dark-theme .icon-sun { display: block; }
 
@@ -177,11 +174,18 @@ session_start();
 
     .team-card:hover::before { opacity: 1; }
 
+    /* ESTILO PARA OS NOVOS SVGS PREMIUM */
     .icon-wrapper {
         width: 60px; height: 60px; background: var(--icon-wrapper-bg);
         border-radius: 14px; display: flex; align-items: center; justify-content: center;
-        font-size: 1.8rem; margin-bottom: 20px; border: 1px solid rgba(168, 85, 247, 0.3);
+        margin-bottom: 20px; border: 1px solid rgba(168, 85, 247, 0.3);
         transition: background 0.5s ease;
+    }
+    
+    .icon-wrapper svg {
+        width: 28px; height: 28px; stroke: #a855f7; fill: none;
+        stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 0.5s ease;
     }
 
     .card-title {
@@ -202,10 +206,22 @@ session_start();
     
     .member-item:last-child { border-bottom: none; padding-bottom: 0; }
 
+    /* Correção: Força a borda a aparecer no último item quando for uma lista em grade */
+    .grid-list .member-item:last-child { 
+        border-bottom: 1px solid var(--list-border); 
+        padding-bottom: 12px; 
+    }
+
     .member-name { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); transition: color 0.5s ease; }
 
     .member-email {
-        font-size: 0.85rem; color: var(--text-muted); text-decoration: none; margin-top: 4px; transition: color 0.2s;
+        font-size: 0.85rem; 
+        color: var(--text-muted); 
+        text-decoration: none; 
+        margin-top: 4px; 
+        transition: color 0.2s;
+        word-break: break-word;
+        overflow-wrap: anywhere;
     }
     .member-email:hover { color: #a855f7; text-decoration: underline; }
     
@@ -261,20 +277,30 @@ session_start();
 
     <div class="contact-grid">
         <div class="team-card">
-            <div class="icon-wrapper">📩</div>
+            <div class="icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+            </div>
             <h2 class="card-title">Atendimento Geral</h2>
             <div class="card-subtitle">Dúvidas, parcerias e suporte</div>
             <ul class="member-list">
                 <li class="member-item">
                     <span class="member-name">Suporte Institucional</span>
-                    <a href="mailto:contato@atomicamente.net" class="member-email">contato@atomicamente.net</a>
+                    <a href="mailto:contato@atomicamente.site" class="member-email">contato@atomicamente.site</a>
                 </li>
             </ul>
             <p class="card-description">Precisa de ajuda com a plataforma ou tem alguma dúvida comercial? Envie um e-mail e nossa equipe responderá na velocidade da luz.</p>
         </div>
 
         <div class="team-card">
-            <div class="icon-wrapper">💻</div>
+            <div class="icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+            </div>
             <h2 class="card-title">Tecnologia</h2>
             <div class="card-subtitle">Desenvolvimento & Engenharia</div>
             <ul class="member-list">
@@ -287,16 +313,22 @@ session_start();
         </div>
 
         <div class="team-card" style="grid-column: 1 / -1;">
-            <div class="icon-wrapper">🧪</div>
+            <div class="icon-wrapper">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.62 17.718A2.5 2.5 0 0 0 6.86 21h10.28a2.5 2.5 0 0 0 2.24-3.282l-5.169-7.295A2 2 0 0 1 14 9.527V2"></path>
+        <line x1="8.5" y1="2" x2="15.5" y2="2"></line>
+        <line x1="6" y1="16" x2="18" y2="16"></line>
+    </svg>
+</div>
             <h2 class="card-title">Conteúdo & Ciência</h2>
             <div class="card-subtitle">O time de Especialistas em Química</div>
             
-            <ul class="member-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+            <ul class="member-list grid-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 15px;">
                 <li class="member-item"><span class="member-name">Maria Fernanda</span><a href="mailto:maria2.cardoso@alunos.ifsuldeminas.edu.br" class="member-email">maria2.cardoso@alunos.ifsuldeminas.edu.br</a></li>
                 <li class="member-item"><span class="member-name">Lívia</span><a href="mailto:lialvarenga8888@gmail.com" class="member-email">lialvarenga8888@gmail.com</a></li>
                 <li class="member-item"><span class="member-name">Ana Júlia</span><a href="mailto:anajuliag903@gmail.com" class="member-email">anajuliag903@gmail.com</a></li>
                 <li class="member-item"><span class="member-name">Larissa</span><a href="mailto:larissa3.carvalho@alunos.ifsuldeminas.edu.br" class="member-email">larissa3.carvalho@alunos.ifsuldeminas.edu.br</a></li>
-                <li class="member-item"><span class="member-name">Ana Laura</span><a href="mailto:ana4.rosa@alunos.ifsuldeminas.edu.br" class="member-email">ana4.rosa@alunos.ifsuldeminas.edu.br</a></li>
+                <li class="member-item"><span class="member-name">Anna Laura</span><a href="mailto:ana4.rosa@alunos.ifsuldeminas.edu.br" class="member-email">ana4.rosa@alunos.ifsuldeminas.edu.br</a></li>
                 <li class="member-item"><span class="member-name">Rita</span><a href="mailto:ritacborges070209@gmail.com" class="member-email">ritacborges070209@gmail.com</a></li>
             </ul>
         </div>
@@ -304,11 +336,9 @@ session_start();
   </main>
 
   <script>
-    // --- Lógica do Theme Toggle ---
     const themeBtn = document.getElementById('theme-btn');
     const body = document.body;
 
-    // Verifica se já existe uma preferência salva
     if (localStorage.getItem('atomicamente-theme') === 'dark') {
         body.classList.add('dark-theme');
     }
@@ -319,7 +349,6 @@ session_start();
         localStorage.setItem('atomicamente-theme', isDark ? 'dark' : 'light');
     });
 
-    // --- Motor Gráfico (Partículas e Palavras) ---
     const canvas = document.getElementById('bg-canvas');
     const ctx = canvas.getContext('2d');
     
@@ -362,7 +391,6 @@ session_start();
             }
         }
         draw(isDark) {
-            // Ajusta a cor com base no tema ativo
             ctx.fillStyle = isDark ? 'rgba(168, 85, 247, 0.35)' : 'rgba(124, 58, 237, 0.25)';
             ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
         }
@@ -395,7 +423,6 @@ session_start();
         }
         draw(isDark) {
             ctx.font = '500 11px "Plus Jakarta Sans", sans-serif';
-            // Cor do texto de acordo com o tema
             ctx.fillStyle = isDark ? `rgba(216, 180, 254, ${this.opacity})` : `rgba(107, 33, 168, ${this.opacity})`;
             ctx.letterSpacing = "1px"; ctx.fillText(this.text, this.x, this.y);
         }
